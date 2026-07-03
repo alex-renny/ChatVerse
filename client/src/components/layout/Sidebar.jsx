@@ -1,8 +1,24 @@
 import { useAuth } from "../../context/AuthContext";
 import UserCard from "./UserCard";
+import { useEffect, useState } from "react";
+import { getUsers } from "../../services/userService";
 
 function Sidebar() {
+  const [users, setUsers] = useState([]);
   const { user, logout } = useAuth();
+
+  useEffect(() => {
+  const loadUsers = async () => {
+    try {
+      const data = await getUsers();
+      setUsers(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  loadUsers();
+}, []);
 
   return (
     <aside className="w-80 bg-slate-900 border-r border-slate-800 flex flex-col">
@@ -48,23 +64,16 @@ function Sidebar() {
 
       <div className="flex-1 overflow-y-auto">
 
-        <UserCard
-          name="John"
-          message="Hey! What's up?"
-          online={true}
-        />
-
-        <UserCard
-          name="Emma"
-          message="See you tomorrow!"
-          online={false}
-        />
-
-        <UserCard
-          name="David"
-          message="Thank you 😊"
-          online={true}
-        />
+        <div className="flex-1 overflow-y-auto">
+          {users.map((u) => (
+            <UserCard
+              key={u._id}
+              name={u.name}
+              message={u.bio || "Start a conversation"}
+              online={u.isOnline}
+            />
+          ))}
+        </div>  
 
       </div>
 
