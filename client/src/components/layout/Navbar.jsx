@@ -18,7 +18,7 @@ function Navbar() {
 
         <div className="flex items-center gap-2">
           <img
-            src="https://i.pravatar.cc/40"
+            src="https://img.magnific.com/free-vector/blue-circle-with-white-user_78370-4707.jpg?semt=ais_hybrid&w=740&q=80"
             alt="Profile"
             className="w-10 h-10 rounded-full"
           />
