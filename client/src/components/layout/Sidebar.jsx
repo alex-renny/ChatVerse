@@ -2,10 +2,16 @@ import { useAuth } from "../../context/AuthContext";
 import UserCard from "./UserCard";
 import { useEffect, useState } from "react";
 import { getUsers } from "../../services/userService";
+import socket from "../../services/socket";
 
 function Sidebar() {
   const [users, setUsers] = useState([]);
   const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+  socket.disconnect();
+  logout();
+};
 
   useEffect(() => {
   const loadUsers = async () => {
@@ -39,7 +45,7 @@ function Sidebar() {
           </div>
 
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="text-red-400 hover:text-red-300"
           >
             Logout

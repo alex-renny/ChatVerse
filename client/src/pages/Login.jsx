@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { login as loginService } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
+import socket from "../services/socket";
 
 function Login() {
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ function Login() {
     const data = await loginService(form);
 
     login(data.user, data.token);
+    socket.connect();
 
     navigate("/chat");
 
