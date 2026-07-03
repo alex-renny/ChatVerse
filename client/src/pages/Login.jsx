@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { login as loginService } from "../services/authService";
+import { useAuth } from "../context/AuthContext";
 
 function Login() {
+  const navigate = useNavigate();
+
+  const { login } = useAuth();
+
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -13,6 +20,21 @@ function Login() {
       [e.target.name]: e.target.value,
     });
   };
+
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  try {
+    const data = await loginService(form);
+
+    login(data.user, data.token);
+
+    navigate("/chat");
+
+  } catch (error) {
+    alert(error.response?.data?.message || "Login failed");
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
@@ -29,7 +51,7 @@ function Login() {
           </p>
         </div>
 
-        <form className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5">
 
           <input
             type="email"
