@@ -1,17 +1,15 @@
-import Navbar from "../components/layout/Navbar";
 import Sidebar from "../components/layout/Sidebar";
 import ChatWindow from "../components/layout/ChatWindow";
+import MainLayout from "../layouts/MainLayout";
 
 function Home() {
   return (
-    <div className="h-screen flex flex-col bg-slate-900">
-      <Navbar />
-
-      <div className="flex flex-1 overflow-hidden">
+    <MainLayout>
+      <div className="flex h-full">
         <Sidebar />
         <ChatWindow />
       </div>
-    </div>
+    </MainLayout>
   );
 }
 
