@@ -30,3 +30,12 @@ export const sendMessage = async (receiver, text) => {
 
   return data;
 };
+export const deleteMessage = async (messageId) => {
+  const { data } = await axios.delete(`${API}/${messageId}`, {
+    headers: {
+      Authorization: `Bearer ${getToken()}`,
+    },
+  });
+
+  return data;
+};

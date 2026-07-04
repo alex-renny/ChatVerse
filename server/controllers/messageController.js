@@ -61,3 +61,38 @@ export const getMessages = async (req, res) => {
     });
   }
 };
+
+// Delete a message
+export const deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      return res.status(404).json({
+        message: "Message not found",
+      });
+    }
+
+    // Only the sender can delete their own message
+    if (message.sender.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        message: "Not authorized",
+      });
+    }
+
+    await message.deleteOne();
+
+    res.json({
+      message: "Message deleted successfully",
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
