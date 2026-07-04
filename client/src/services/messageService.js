@@ -14,28 +14,44 @@ export const getMessages = async (receiverId) => {
   return data;
 };
 
-export const sendMessage = async (receiver, text) => {
-  const { data } = await axios.post(
-    API,
-    {
-      receiver,
-      text,
+export const sendMessage = async (receiver, text, image = null) => {
+  const formData = new FormData();
+
+  formData.append("receiver", receiver);
+  formData.append("text", text);
+
+  if (image) {
+    formData.append("image", image);
+  }
+
+  const { data } = await axios.post(API, formData, {
+    headers: {
+      Authorization: `Bearer ${getToken()}`,
     },
-    {
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-      },
-    }
-  );
+  });
 
   return data;
 };
+
 export const deleteMessage = async (messageId) => {
   const { data } = await axios.delete(`${API}/${messageId}`, {
     headers: {
       Authorization: `Bearer ${getToken()}`,
     },
   });
+
+  return data;
+};
+export const markAsSeen = async (senderId) => {
+  const { data } = await axios.put(
+    `${API}/seen/${senderId}`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    }
+  );
 
   return data;
 };

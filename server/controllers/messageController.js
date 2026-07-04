@@ -6,21 +6,31 @@ export const sendMessage = async (req, res) => {
   try {
     const { receiver, text } = req.body;
 
+    const image = req.file
+      ? `/uploads/${req.file.filename}`
+      : "";
+
     const message = await Message.create({
       sender: req.user._id,
       receiver,
       text,
+      image,   
     });
 
     // If receiver is online, send instantly
     const receiverSocketId = onlineUsers.get(receiver);
 
     if (receiverSocketId) {
-      io.to(receiverSocketId).emit("receiveMessage", message);
-      console.log("📨 Sent instantly to:", receiver);
-    } else {
-      console.log("📴 Receiver offline");
-    }
+
+      message.delivered = true;
+
+      await message.save();
+
+      io.to(receiverSocketId).emit(
+        "receiveMessage",
+        message
+      );
+}
 
     res.status(201).json(message);
 
@@ -52,6 +62,34 @@ export const getMessages = async (req, res) => {
     }).sort({ createdAt: 1 });
 
     res.json(messages);
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+
+export const markAsSeen = async (req, res) => {
+  try {
+    const { senderId } = req.params;
+
+    await Message.updateMany(
+      {
+        sender: senderId,
+        receiver: req.user._id,
+        seen: false,
+      },
+      {
+        seen: true,
+      }
+    );
+
+    res.json({
+      message: "Messages marked as seen",
+    });
 
   } catch (error) {
     console.error(error);

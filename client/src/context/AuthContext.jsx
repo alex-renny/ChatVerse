@@ -10,10 +10,21 @@ export function AuthProvider({ children }) {
   );
 
   useEffect(() => {
-  if (user) {
-    socket.connect();
+  if (!user) return;
+
+  console.log("Connecting socket...");
+  socket.connect();
+
+  socket.on("connect", () => {
+    console.log("Socket connected:", socket.id);
+    console.log("Registering user:", user.id);
+
     socket.emit("registerUser", user.id);
-  }
+  });
+
+  return () => {
+    socket.off("connect");
+  };
 }, [user]);
 
   const login = (userData, token) => {

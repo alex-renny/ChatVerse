@@ -16,7 +16,6 @@ const messageSchema = new mongoose.Schema(
 
     text: {
       type: String,
-      required: true,
       trim: true,
     },
 
@@ -28,6 +27,10 @@ const messageSchema = new mongoose.Schema(
     seen: {
       type: Boolean,
       default: false,
+    },
+    image: {
+      type: String,
+      default: "",
     },
   },
   {

@@ -1,14 +1,16 @@
 import { useEffect, useState, useRef } from "react";
-import {getMessages,sendMessage,deleteMessage,} from "../../services/messageService";
+import {getMessages,sendMessage,deleteMessage,markAsSeen,} from "../../services/messageService";
 import socket from "../../services/socket";
 import { useAuth } from "../../context/AuthContext";
 import MessageMenu from "../chat/MessageMenu";
 import EmojiPicker from "emoji-picker-react";
 import {FiPaperclip,FiImage,FiMic,FiSend,} from "react-icons/fi";
+import { IoCheckmark, IoCheckmarkDone } from "react-icons/io5";
 
 import { BsEmojiSmile } from "react-icons/bs";
 
 function ChatWindow({ selectedUser }) {
+  const typingTimeout = useRef(null);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const { user } = useAuth();
@@ -17,20 +19,23 @@ function ChatWindow({ selectedUser }) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [typing, setTyping] = useState(false);
 
   const handleEmojiClick = (emojiData) => {
   setText((prev) => prev + emojiData.emoji);
 };
 
   const handleSend = async () => {
-  if (!text.trim()) return;
+  if (!text.trim() && !selectedImage) return;
 
   try {
-    const newMessage = await sendMessage(selectedUser._id, text);
+    const newMessage = await sendMessage(selectedUser._id,text,selectedImage);
 
     setMessages((prev) => [...prev, newMessage]);
-
     setText("");
+    setSelectedImage(null);
 
   } catch (error) {
     console.error(error);
@@ -51,22 +56,31 @@ useEffect(() => {
   bottomRef.current?.scrollIntoView({
     behavior: "smooth",
   });
-}, [messages]);
+}, [messages, typing]);
 
   useEffect(() => {
-    if (!selectedUser) return;
+  if (!selectedUser) return;
 
-    const loadMessages = async () => {
-      try {
-        const data = await getMessages(selectedUser._id);
-        setMessages(data);
-      } catch (error) {
-        console.error(error);
-      }
-    };
+  const loadMessages = async () => {
+    try {
+      const data = await getMessages(selectedUser._id);
 
-    loadMessages();
-  }, [selectedUser]);
+      setMessages(data);
+
+      await markAsSeen(selectedUser._id);
+
+      socket.emit("messagesSeen", {
+        senderId: selectedUser._id,
+        receiverId: user.id,
+      });
+
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  loadMessages();
+}, [selectedUser]);
 
   useEffect(() => {
   const handleReceiveMessage = (message) => {
@@ -86,6 +100,63 @@ useEffect(() => {
     socket.off("receiveMessage", handleReceiveMessage);
   };
 }, [selectedUser]);
+
+useEffect(() => {
+  const handleTyping = (data) => {
+    console.log("📥 Typing received:", data);
+
+    if (!data || !selectedUser) return;
+
+    if (data.senderId === selectedUser._id) {
+      console.log("✅ setTyping(true)");
+      setTyping(true);
+    }
+  };
+
+  const handleStopTyping = (data) => {
+    console.log("🛑 Stop typing:", data);
+
+    if (!data || !selectedUser) return;
+
+    if (data.senderId === selectedUser._id) {
+      setTyping(false);
+    }
+  };
+
+  socket.on("typing", handleTyping);
+  socket.on("stopTyping", handleStopTyping);
+
+  return () => {
+    socket.off("typing", handleTyping);
+    socket.off("stopTyping", handleStopTyping);
+  };
+}, [selectedUser]);
+
+useEffect(() => {
+
+  const handleSeenUpdate = ({ receiverId }) => {
+
+    if (selectedUser && selectedUser._id === receiverId) {
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.sender === user.id
+            ? { ...msg, seen: true, delivered: true }
+            : msg
+        )
+      );
+
+    }
+
+  };
+
+  socket.on("messagesSeenUpdate", handleSeenUpdate);
+
+  return () => {
+    socket.off("messagesSeenUpdate", handleSeenUpdate);
+  };
+
+}, [selectedUser, user]);
 
   if (!selectedUser) {
     return (
@@ -120,6 +191,27 @@ useEffect(() => {
         </p>
 
       </div>
+
+  {selectedImage && (
+    <div className="px-4 pb-2">
+      <div className="relative w-fit">
+
+        <img
+          src={URL.createObjectURL(selectedImage)}
+          alt="Preview"
+          className="max-h-40 rounded-xl border border-slate-700"
+        />
+
+        <button
+          onClick={() => setSelectedImage(null)}
+          className="absolute top-2 right-2 bg-red-600 rounded-full px-2 text-white"
+        >
+          ✕
+        </button>
+
+      </div>
+    </div>
+  )}
 
       {/* Messages */}
 
@@ -157,20 +249,64 @@ useEffect(() => {
             }`}
           >
             <div>
-              <p>{msg.text}</p>
+              <div>
+                {msg.image && (
+                  <img
+                    src={`http://localhost:5000${msg.image}`}
+                    alt="Shared"
+                    onClick={() =>
+                      setPreviewImage(`http://localhost:5000${msg.image}`)
+                    }
+                    className="rounded-xl mb-2 max-w-xs cursor-pointer hover:opacity-90 transition"
+                  />
+                )}
 
-              <p className="text-[11px] text-slate-300 mt-1 text-right">
-                {new Date(msg.createdAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </p>
+                {msg.text && (
+                  <p>{msg.text}</p>
+                )}
+              </div>
+
+              <div className="flex justify-end items-center gap-1 text-[11px] text-slate-300 mt-1">
+
+                <span>
+                  {new Date(msg.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+
+                {isMine && (
+                  msg.seen ? (
+                    <IoCheckmarkDone className="text-green-400" />
+                  ) : msg.delivered ? (
+                    <IoCheckmarkDone className="text-gray-300" />
+                  ) : (
+                    <IoCheckmark className="text-gray-300" />
+                  )
+                )}
+
+              </div>
             </div>
           </div>
         </div>
       );
     })
   )}
+{typing && (
+        <div className="flex justify-start my-2 animate-fadeIn">
+
+          <div className="bg-slate-700 rounded-2xl rounded-bl-md px-3 py-2 shadow-md">
+
+            <div className="flex items-center gap-1 h-5">
+              <span className="typing-dot"></span>
+              <span className="typing-dot"></span>
+              <span className="typing-dot"></span>
+            </div>
+
+          </div>
+
+        </div>
+      )}
 
   {/* Auto-scroll target */}
   <div ref={bottomRef}></div>
@@ -221,6 +357,11 @@ useEffect(() => {
         type="file"
         accept="image/*"
         hidden
+        onChange={(e) => {
+          if (e.target.files.length > 0) {
+            setSelectedImage(e.target.files[0]);
+          }
+        }}
       />
 
       {/* Message Box */}
@@ -228,7 +369,28 @@ useEffect(() => {
       <input
         type="text"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+
+          setText(e.target.value);
+
+          console.log("Sending typing event");
+          socket.emit("typing", {
+            receiverId: selectedUser._id,
+            senderId: user.id,
+          });
+
+          clearTimeout(typingTimeout.current);
+
+          typingTimeout.current = setTimeout(() => {
+
+            socket.emit("stopTyping", {
+              receiverId: selectedUser._id,
+              senderId: user.id,
+            });
+
+          }, 1000);
+
+        }}
         placeholder="Type a message..."
         className="flex-1 bg-slate-800 text-white rounded-full px-5 py-3 outline-none"
         onKeyDown={(e) => {
@@ -287,6 +449,19 @@ useEffect(() => {
 }}  
         />
       )}
+
+      {previewImage && (
+  <div
+    onClick={() => setPreviewImage(null)}
+    className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+  >
+    <img
+      src={previewImage}
+      alt="Preview"
+      className="max-w-[90%] max-h-[90%] rounded-xl shadow-2xl"
+    />
+  </div>
+)}
 
     </main>
   );
