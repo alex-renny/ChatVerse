@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { getMessages } from "../../services/messageService";
 import { sendMessage } from "../../services/messageService";
+import socket from "../../services/socket";
+import { useAuth } from "../../context/AuthContext";
 
 function ChatWindow({ selectedUser }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+  const { user } = useAuth();
 
   const handleSend = async () => {
   if (!text.trim()) return;
@@ -37,6 +40,25 @@ function ChatWindow({ selectedUser }) {
     loadMessages();
   }, [selectedUser]);
 
+  useEffect(() => {
+  const handleReceiveMessage = (message) => {
+    // Only show messages from the currently selected user
+    if (
+      selectedUser &&
+      (message.sender === selectedUser._id ||
+        message.receiver === selectedUser._id)
+    ) {
+      setMessages((prev) => [...prev, message]);
+    }
+  };
+
+  socket.on("receiveMessage", handleReceiveMessage);
+
+  return () => {
+    socket.off("receiveMessage", handleReceiveMessage);
+  };
+}, [selectedUser]);
+
   if (!selectedUser) {
     return (
       <main className="flex-1 flex items-center justify-center bg-slate-950">
@@ -52,6 +74,7 @@ function ChatWindow({ selectedUser }) {
       </main>
     );
   }
+
 
   return (
     <main className="flex-1 flex flex-col bg-slate-950">
@@ -79,14 +102,28 @@ function ChatWindow({ selectedUser }) {
             No messages yet.
           </p>
         ) : (
-          messages.map((msg) => (
+          messages.map((msg) => {
+          const isMine = msg.sender === user.id;
+
+          return (
             <div
               key={msg._id}
-              className="bg-slate-800 text-white p-3 rounded-xl mb-3 w-fit"
+              className={`flex mb-3 ${
+                isMine ? "justify-end" : "justify-start"
+              }`}
             >
-              {msg.text}
+              <div
+                className={`max-w-xs px-4 py-3 rounded-2xl text-white ${
+                  isMine
+                    ? "bg-blue-600 rounded-br-md"
+                    : "bg-slate-700 rounded-bl-md"
+                }`}
+              >
+                {msg.text}
+              </div>
             </div>
-          ))
+          );
+        })
         )}
 
       </div>
