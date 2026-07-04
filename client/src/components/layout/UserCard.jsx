@@ -1,31 +1,27 @@
-function UserCard({ name, message, online }) {
+function UserCard({ user, onSelect, online }) {
   return (
-    <div className="flex items-center gap-4 p-4 hover:bg-slate-800 cursor-pointer transition">
-
-      <div className="relative">
-
-        <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg">
-          {name.charAt(0)}
-        </div>
-
-        {online && (
-          <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-slate-900"></div>
-        )}
-
-      </div>
-
-      <div className="overflow-hidden">
-
-        <h3 className="text-white font-semibold">
-          {name}
+    <div
+      onClick={() => {
+  console.log("Clicked:", user);
+  onSelect(user);
+}}  
+      className="cursor-pointer hover:bg-slate-800 p-4 border-b border-slate-800"
+    >
+      <div className="flex items-center justify-between">
+        <h3 className="text-white font-medium">
+          {user.name}
         </h3>
 
-        <p className="text-slate-400 text-sm truncate w-48">
-          {message}
-        </p>
-
+        <div
+          className={`w-3 h-3 rounded-full ${
+            online ? "bg-green-500" : "bg-gray-500"
+          }`}
+        />
       </div>
 
+      <p className="text-slate-400 text-sm mt-1">
+        {user.bio || "Start a conversation"}
+      </p>
     </div>
   );
 }

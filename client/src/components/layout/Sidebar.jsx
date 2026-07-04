@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { getUsers } from "../../services/userService";
 import socket from "../../services/socket";
 
-function Sidebar() {
+function Sidebar({ setSelectedUser }) {
   const [users, setUsers] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const { user, logout } = useAuth();
@@ -84,10 +84,10 @@ function Sidebar() {
 
         <div className="flex-1 overflow-y-auto">
           {users.map((u) => (
-            <UserCard
+           <UserCard
               key={u._id}
-              name={u.name}
-              message={u.bio || "Start a conversation"}
+              user={u}
+              onSelect={setSelectedUser}
               online={onlineUsers.includes(u._id)}
             />
           ))}
