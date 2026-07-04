@@ -29,8 +29,7 @@ function Login() {
     const data = await loginService(form);
 
     login(data.user, data.token);
-    socket.connect();
-
+    
     navigate("/chat");
 
   } catch (error) {

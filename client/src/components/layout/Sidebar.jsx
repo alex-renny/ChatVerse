@@ -6,6 +6,7 @@ import socket from "../../services/socket";
 
 function Sidebar() {
   const [users, setUsers] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState([]);
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
@@ -25,6 +26,17 @@ function Sidebar() {
 
   loadUsers();
 }, []);
+
+  useEffect(() => {
+    socket.on("onlineUsers", (users) => {
+      console.log("Online Users:", users);
+      setOnlineUsers(users);
+    });
+
+    return () => {
+      socket.off("onlineUsers");
+    };
+  }, []);
 
   return (
     <aside className="w-80 bg-slate-900 border-r border-slate-800 flex flex-col">
@@ -76,7 +88,7 @@ function Sidebar() {
               key={u._id}
               name={u.name}
               message={u.bio || "Start a conversation"}
-              online={u.isOnline}
+              online={onlineUsers.includes(u._id)}
             />
           ))}
         </div>  

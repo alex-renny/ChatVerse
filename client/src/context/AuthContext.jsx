@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
+import socket from "../services/socket";
 
 const AuthContext = createContext();
 
@@ -20,6 +21,22 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
   };
+  
+  useEffect(() => {
+  if (user) {
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    socket.emit("join", user.id);
+  }
+
+  return () => {
+    if (socket.connected) {
+      socket.disconnect();
+    }
+  };
+}, [user]);
 
   return (
     <AuthContext.Provider
