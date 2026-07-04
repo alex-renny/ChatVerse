@@ -1,4 +1,5 @@
 import Message from "../models/Message.js";
+import { io, onlineUsers } from "../server.js";
 
 // Send a message
 export const sendMessage = async (req, res) => {
@@ -10,6 +11,16 @@ export const sendMessage = async (req, res) => {
       receiver,
       text,
     });
+
+    // If receiver is online, send instantly
+    const receiverSocketId = onlineUsers.get(receiver);
+
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("receiveMessage", message);
+      console.log("📨 Sent instantly to:", receiver);
+    } else {
+      console.log("📴 Receiver offline");
+    }
 
     res.status(201).json(message);
 

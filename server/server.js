@@ -15,41 +15,51 @@ dotenv.config();
 connectDB();
 
 const app = express();
-
 const server = createServer(app);
 
-const io = new Server(server, {
+export const io = new Server(server, {
   cors: {
     origin: "http://localhost:5173",
     methods: ["GET", "POST"],
   },
 });
-const onlineUsers = new Map();  
+export const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
-  console.log("🟢 Connected:", socket.id);
 
-  socket.on("join", (userId) => {
-    onlineUsers.set(userId, socket.id);
+    console.log("🟢 Connected:", socket.id);
 
-    console.log("User Joined:", userId);
+    socket.on("registerUser", (userId) => {
 
-    io.emit("onlineUsers", [...onlineUsers.keys()]);
-  });
+      onlineUsers.set(userId, socket.id);
 
-  socket.on("disconnect", () => {
-    for (const [userId, socketId] of onlineUsers.entries()) {
-      if (socketId === socket.id) {
-        onlineUsers.delete(userId);
-        break;
+      console.log("✅ Registered:", userId);
+
+      io.emit("onlineUsers", [...onlineUsers.keys()]);
+
+    });
+
+    socket.on("disconnect", () => {
+
+      console.log("🔴 Disconnected:", socket.id);
+
+      for (const [userId, socketId] of onlineUsers.entries()) {
+
+        if (socketId === socket.id) {
+
+          onlineUsers.delete(userId);
+
+          break;
+
+        }
+
       }
-    }
 
-    io.emit("onlineUsers", [...onlineUsers.keys()]);
+      io.emit("onlineUsers", [...onlineUsers.keys()]);
 
-    console.log("🔴 Disconnected:", socket.id);
+    });
+
   });
-});
 
 app.use(cors());
 app.use(express.json());
