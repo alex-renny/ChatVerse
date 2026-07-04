@@ -3,6 +3,10 @@ import {getMessages,sendMessage,deleteMessage,} from "../../services/messageServ
 import socket from "../../services/socket";
 import { useAuth } from "../../context/AuthContext";
 import MessageMenu from "../chat/MessageMenu";
+import EmojiPicker from "emoji-picker-react";
+import {FiPaperclip,FiImage,FiMic,FiSend,} from "react-icons/fi";
+
+import { BsEmojiSmile } from "react-icons/bs";
 
 function ChatWindow({ selectedUser }) {
   const [messages, setMessages] = useState([]);
@@ -10,6 +14,13 @@ function ChatWindow({ selectedUser }) {
   const { user } = useAuth();
   const bottomRef = useRef(null);
   const [menu, setMenu] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
+
+  const handleEmojiClick = (emojiData) => {
+  setText((prev) => prev + emojiData.emoji);
+};
 
   const handleSend = async () => {
   if (!text.trim()) return;
@@ -164,28 +175,90 @@ useEffect(() => {
   {/* Auto-scroll target */}
   <div ref={bottomRef}></div>
 
-</div>
-      <div className="p-4 border-t border-slate-800 flex gap-3">
-        <input
-          type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Type a message..."
-          className="flex-1 bg-slate-800 text-white p-3 rounded-xl outline-none"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handleSend();
-            }
-          }}
-        />
+  </div>
+        <div className="relative border-t border-slate-800 p-4">
 
-        <button
-          onClick={handleSend}
-          className="bg-blue-600 hover:bg-blue-700 px-5 rounded-xl text-white"
-        >
-          Send
-        </button>
+    {showEmojiPicker && (
+      <div className="absolute bottom-20 left-3 z-50">
+        <EmojiPicker onEmojiClick={handleEmojiClick} />
       </div>
+    )}
+
+    <div className="flex items-center gap-2">
+
+      {/* Emoji */}
+      <button
+        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+        className="text-slate-300 hover:text-white text-2xl"
+      >
+        <BsEmojiSmile />
+      </button>
+
+      {/* File */}
+      <button
+        onClick={() => fileInputRef.current.click()}
+        className="text-slate-300 hover:text-white text-2xl"
+      >
+        <FiPaperclip />
+      </button>
+
+      {/* Image */}
+      <button
+        onClick={() => imageInputRef.current.click()}
+        className="text-slate-300 hover:text-white text-2xl"
+      >
+        <FiImage />
+      </button>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        hidden
+      />
+
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        hidden
+      />
+
+      {/* Message Box */}
+
+      <input
+        type="text"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Type a message..."
+        className="flex-1 bg-slate-800 text-white rounded-full px-5 py-3 outline-none"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            handleSend();
+          }
+        }}
+      />
+
+      {/* Mic */}
+
+      <button
+        className="text-slate-300 hover:text-white text-2xl"
+      >
+        <FiMic />
+      </button>
+
+      {/* Send */}
+
+      <button
+        onClick={handleSend}
+        className="bg-blue-600 hover:bg-blue-700 rounded-full p-3 text-white"
+      >
+        <FiSend />
+      </button>
+
+      </div>
+
+    </div>
+
       {menu && (
         <MessageMenu
           x={menu.x}
