@@ -1,17 +1,53 @@
+import { useEffect, useState } from "react";
+import { getMessages } from "../../services/messageService";
+import { sendMessage } from "../../services/messageService";
+
 function ChatWindow({ selectedUser }) {
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+
+  const handleSend = async () => {
+  if (!text.trim()) return;
+
+  try {
+    const newMessage = await sendMessage(selectedUser._id, text);
+
+    setMessages((prev) => [...prev, newMessage]);
+
+    setText("");
+
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+
+  useEffect(() => {
+    if (!selectedUser) return;
+
+    const loadMessages = async () => {
+      try {
+        const data = await getMessages(selectedUser._id);
+        setMessages(data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    loadMessages();
+  }, [selectedUser]);
+
   if (!selectedUser) {
     return (
-      <main className="flex-1 flex flex-col bg-slate-950">
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <h2 className="text-4xl font-bold text-white mb-4">
-              Welcome to ChatVerse
-            </h2>
+      <main className="flex-1 flex items-center justify-center bg-slate-950">
+        <div className="text-center">
+          <h2 className="text-4xl font-bold text-white mb-4">
+            Welcome to ChatVerse
+          </h2>
 
-            <p className="text-slate-400">
-              Select a conversation to start chatting.
-            </p>
-          </div>
+          <p className="text-slate-400">
+            Select a conversation to start chatting.
+          </p>
         </div>
       </main>
     );
@@ -19,7 +55,11 @@ function ChatWindow({ selectedUser }) {
 
   return (
     <main className="flex-1 flex flex-col bg-slate-950">
+
+      {/* Header */}
+
       <div className="p-5 border-b border-slate-800">
+
         <h2 className="text-2xl font-bold text-white">
           {selectedUser.name}
         </h2>
@@ -27,13 +67,53 @@ function ChatWindow({ selectedUser }) {
         <p className="text-slate-400">
           {selectedUser.email}
         </p>
+
       </div>
 
-      <div className="flex-1 flex items-center justify-center text-slate-400">
-        Start chatting with {selectedUser.name}
+      {/* Messages */}
+
+      <div className="flex-1 overflow-y-auto p-5">
+
+        {messages.length === 0 ? (
+          <p className="text-slate-400">
+            No messages yet.
+          </p>
+        ) : (
+          messages.map((msg) => (
+            <div
+              key={msg._id}
+              className="bg-slate-800 text-white p-3 rounded-xl mb-3 w-fit"
+            >
+              {msg.text}
+            </div>
+          ))
+        )}
+
       </div>
+      <div className="p-4 border-t border-slate-800 flex gap-3">
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Type a message..."
+          className="flex-1 bg-slate-800 text-white p-3 rounded-xl outline-none"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSend();
+            }
+          }}
+        />
+
+        <button
+          onClick={handleSend}
+          className="bg-blue-600 hover:bg-blue-700 px-5 rounded-xl text-white"
+        >
+          Send
+        </button>
+      </div>
+
     </main>
   );
 }
 
-export default ChatWindow;  
+export default ChatWindow;
