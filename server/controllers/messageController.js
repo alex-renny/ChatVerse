@@ -4,35 +4,38 @@ import { io, onlineUsers } from "../server.js";
 // Send a message
 export const sendMessage = async (req, res) => {
   try {
-    const { receiver, text } = req.body;
+    const { receiver, text, replyTo } = req.body;
 
     const image = req.file
       ? `/uploads/${req.file.filename}`
       : "";
 
-    const message = await Message.create({
-      sender: req.user._id,
-      receiver,
-      text,
-      image,   
-    });
+    const messageData = {
+  sender: req.user._id,
+  receiver,
+  text,
+  image,
+};
 
-    // If receiver is online, send instantly
-    const receiverSocketId = onlineUsers.get(receiver);
-
-    if (receiverSocketId) {
-
-      message.delivered = true;
-
-      await message.save();
-
-      io.to(receiverSocketId).emit(
-        "receiveMessage",
-        message
-      );
+if (replyTo) {
+  messageData.replyTo = replyTo;
 }
 
-    res.status(201).json(message);
+const message = await Message.create(messageData);
+
+// Populate replyTo before sending to clients
+await message.populate("replyTo");
+
+const receiverSocketId = onlineUsers.get(receiver);
+
+if (receiverSocketId) {
+  message.delivered = true;
+  await message.save();
+
+  io.to(receiverSocketId).emit("receiveMessage", message);
+}
+
+res.status(201).json(message);
 
   } catch (error) {
     console.error(error);
@@ -49,17 +52,19 @@ export const getMessages = async (req, res) => {
     const { receiverId } = req.params;
 
     const messages = await Message.find({
-      $or: [
-        {
-          sender: req.user._id,
-          receiver: receiverId,
-        },
-        {
-          sender: receiverId,
-          receiver: req.user._id,
-        },
-      ],
-    }).sort({ createdAt: 1 });
+  $or: [
+    {
+      sender: req.user._id,
+      receiver: receiverId,
+    },
+    {
+      sender: receiverId,
+      receiver: req.user._id,
+    },
+  ],
+})
+.populate("replyTo")
+.sort({ createdAt: 1 });
 
     res.json(messages);
 

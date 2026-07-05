@@ -14,7 +14,7 @@ export const getMessages = async (receiverId) => {
   return data;
 };
 
-export const sendMessage = async (receiver, text, image = null) => {
+export const sendMessage = async (receiver, text, image, replyTo) => {
   const formData = new FormData();
 
   formData.append("receiver", receiver);
@@ -22,6 +22,10 @@ export const sendMessage = async (receiver, text, image = null) => {
 
   if (image) {
     formData.append("image", image);
+  }
+
+  if (replyTo) {
+    formData.append("replyTo", replyTo);
   }
 
   const { data } = await axios.post(API, formData, {

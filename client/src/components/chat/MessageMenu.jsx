@@ -1,4 +1,4 @@
-function MessageMenu({ x, y, onCopy, onDelete }) {
+function MessageMenu({ x, y, onReply,onCopy, onDelete }) {
   return (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -8,6 +8,13 @@ function MessageMenu({ x, y, onCopy, onDelete }) {
         left: x,
       }}
     >
+        <button
+            onClick={onReply}
+            className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
+            >
+            ↩ Reply
+        </button>
+
       <button
         onClick={onCopy}
         className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"

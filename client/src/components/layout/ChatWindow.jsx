@@ -22,6 +22,7 @@ function ChatWindow({ selectedUser }) {
   const [selectedImage, setSelectedImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [typing, setTyping] = useState(false);
+  const [replyMessage, setReplyMessage] = useState(null);
 
   const handleEmojiClick = (emojiData) => {
   setText((prev) => prev + emojiData.emoji);
@@ -31,11 +32,12 @@ function ChatWindow({ selectedUser }) {
   if (!text.trim() && !selectedImage) return;
 
   try {
-    const newMessage = await sendMessage(selectedUser._id,text,selectedImage);
+    const newMessage = await sendMessage(selectedUser._id,text,selectedImage,replyMessage?._id);
 
     setMessages((prev) => [...prev, newMessage]);
     setText("");
     setSelectedImage(null);
+    setReplyMessage(null);
 
   } catch (error) {
     console.error(error);
@@ -224,6 +226,7 @@ useEffect(() => {
   ) : (
     messages.map((msg) => {
       const isMine = msg.sender === user.id;
+      console.log("ReplyTo:", msg.replyTo);
 
       return (
         <div
@@ -250,6 +253,18 @@ useEffect(() => {
           >
             <div>
               <div>
+                {msg.replyTo && (
+                  <div className="mb-2 border-l-4 border-blue-400 bg-black/20 rounded-md px-3 py-2">
+                    <p className="text-xs text-blue-300 font-semibold">
+                      {msg.replyTo.sender === user.id ? "You" : selectedUser.name}
+                    </p>
+
+                    <p className="text-sm text-slate-300 truncate">
+                      {msg.replyTo.text || "📷 Image"}
+                    </p>
+                  </div>
+                )}
+
                 {msg.image && (
                   <img
                     src={`http://localhost:5000${msg.image}`}
@@ -264,6 +279,7 @@ useEffect(() => {
                 {msg.text && (
                   <p>{msg.text}</p>
                 )}
+
               </div>
 
               <div className="flex justify-end items-center gap-1 text-[11px] text-slate-300 mt-1">
@@ -312,7 +328,28 @@ useEffect(() => {
   <div ref={bottomRef}></div>
 
   </div>
-        <div className="relative border-t border-slate-800 p-4">
+    <div className="relative border-t border-slate-800 p-4">
+
+              {replyMessage && (
+      <div className="bg-slate-800 border-l-4 border-blue-500 rounded-lg p-3 mb-3 flex justify-between items-start">
+        <div>
+          <p className="text-blue-400 text-sm font-semibold">
+            Replying to {replyMessage.sender === user.id ? "You" : selectedUser.name}
+          </p>
+
+          <p className="text-slate-300 text-sm truncate max-w-md">
+            {replyMessage.text || "📷 Image"}
+          </p>
+        </div>
+
+        <button
+          onClick={() => setReplyMessage(null)}
+          className="text-slate-400 hover:text-white text-lg"
+        >
+          ✕
+        </button>
+      </div>
+    )}
 
     {showEmojiPicker && (
       <div className="absolute bottom-20 left-3 z-50">
@@ -426,6 +463,10 @@ useEffect(() => {
           x={menu.x}
           y={menu.y}
           onClose={() => setMenu(null)}
+          onReply={() => {
+            setReplyMessage(menu.message);
+            setMenu(null);
+          }}
           onCopy={() => {
             navigator.clipboard.writeText(menu.message.text);
             setMenu(null);
