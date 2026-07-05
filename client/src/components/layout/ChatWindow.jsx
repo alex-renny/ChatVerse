@@ -253,12 +253,12 @@ useEffect(() => {
               message: msg,
             });
           }}
-          className={`flex mb-3 ${
+          className={`flex mb-1 ${
             isMine ? "justify-end" : "justify-start"
           }`}
         >
           <div
-            className={`max-w-xs px-4 py-3 rounded-2xl text-white ${
+            className={`max-w-md px-4 py-1.5 rounded-2xl text-white ${
               isMine
                 ? "bg-blue-600 rounded-br-md"
                 : "bg-slate-700 rounded-bl-md"
@@ -267,7 +267,7 @@ useEffect(() => {
             <div>
               <div>
                 {msg.replyTo && (
-                  <div className="mb-2 border-l-4 border-blue-400 bg-black/20 rounded-md px-3 py-2">
+                  <div className="mb-2 border-l-4 border-blue-400 bg-black/20 rounded-md px-3 py-1.5">
                     <p className="text-xs text-blue-300 font-semibold">
                       {msg.replyTo.sender === user.id ? "You" : selectedUser.name}
                     </p>
@@ -295,7 +295,7 @@ useEffect(() => {
 
               </div>
 
-              <div className="flex justify-end items-center gap-1 text-[11px] text-slate-300 mt-1">
+              <div className="flex justify-end items-center gap-1 text-[9px] text-slate-300 mt-0.5">
 
                 <span>
                   {new Date(msg.createdAt).toLocaleTimeString([], {
@@ -341,16 +341,16 @@ useEffect(() => {
   <div ref={bottomRef}></div>
 
   </div>
-    <div className="relative border-t border-slate-800 p-4">
+    <div className="relative border-t border-slate-800 px-3 py-1.5">
 
               {replyMessage && (
-      <div className="bg-slate-800 border-l-4 border-blue-500 rounded-lg p-3 mb-3 flex justify-between items-start">
+      <div className="bg-slate-800 border-l-4 border-blue-500 rounded-lg p-3 mb-3 flex items-start">
         <div>
           <p className="text-blue-400 text-sm font-semibold">
             Replying to {replyMessage.sender === user.id ? "You" : selectedUser.name}
           </p>
 
-          <p className="text-slate-300 text-sm truncate max-w-md">
+          <p className="text-slate-300 text-sm truncate max-w-md px-4 py-2 rounded-2xl">
             {replyMessage.text || "📷 Image"}
           </p>
         </div>
