@@ -4,21 +4,23 @@ import ChatWindow from "../components/layout/ChatWindow";
 
 function Chat() {
   const [selectedUser, setSelectedUser] = useState(null);
-  const [showChat, setShowChat] = useState(false);
 
   return (
-    <div className="h-screen flex bg-slate-950 overflow-hidden">
-      <Sidebar
-        setSelectedUser={setSelectedUser}
-        showChat={showChat}
-        setShowChat={setShowChat}
-      />
+    <div className="flex h-screen bg-slate-950 overflow-hidden">
 
-      <ChatWindow
-        selectedUser={selectedUser}
-        showChat={showChat}
-        setShowChat={setShowChat}
-      />
+      {/* Sidebar */}
+      <div className={`${selectedUser ? "hidden md:block" : "block"} w-full md:w-80`}>
+        <Sidebar setSelectedUser={setSelectedUser} />
+      </div>
+
+      {/* Chat */}
+      <div className={`${selectedUser ? "flex" : "hidden md:flex"} flex-1`}>
+        <ChatWindow
+          selectedUser={selectedUser}
+          setSelectedUser={setSelectedUser}
+        />
+      </div>
+
     </div>
   );
 }

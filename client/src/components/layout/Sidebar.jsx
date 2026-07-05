@@ -39,18 +39,7 @@ function Sidebar({ selectedUser,setSelectedUser, }) {
   }, []);
 
   return (
-    <aside
-  className={`
-    ${selectedUser ? "hidden" : "flex"}
-    md:flex
-    w-full
-    md:w-80
-    bg-slate-900
-    border-r
-    border-slate-800
-    flex-col
-  `}
->
+    <aside className="w-full md:w-80 h-screen bg-slate-900 border-r border-slate-800 flex flex-col">
 
       {/* Header */}
       <div className="p-5 border-b border-slate-800">
@@ -92,21 +81,14 @@ function Sidebar({ selectedUser,setSelectedUser, }) {
       {/* Contact List */}
 
       <div className="flex-1 overflow-y-auto">
-
-        <div className="flex-1 overflow-y-auto">
-          {users.map((u) => (
-           <UserCard
-              key={u._id}
-              user={u}
-              onSelect={(user) => {
-                setSelectedUser(user);
-                setShowChat(true);
-              }}
-              online={onlineUsers.includes(u._id)}
-            />
-          ))}
-        </div>  
-
+        {users.map((u) => (
+          <UserCard
+            key={u._id}
+            user={u}
+            onSelect={setSelectedUser}
+            online={onlineUsers.includes(u._id)}
+          />
+        ))}
       </div>
 
     </aside>

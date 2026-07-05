@@ -9,12 +9,7 @@ import { IoCheckmark, IoCheckmarkDone } from "react-icons/io5";
 
 import { BsEmojiSmile } from "react-icons/bs";
 
-function ChatWindow({
-  selectedUser,
-  showChat,
-  setShowChat,
-  setSelectedUser,
-}) {
+function ChatWindow({ selectedUser, setSelectedUser }) {
   const typingTimeout = useRef(null);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
@@ -166,28 +161,24 @@ useEffect(() => {
 }, [selectedUser, user]);
 
   if (!selectedUser) {
-    return (
-      <main
-  className={`
-    ${selectedUser ? "flex" : "hidden"}
-    md:flex
-    flex-1
-    flex-col
-    bg-slate-950
-  `}
->
+  return (
+    <main className="flex-1 bg-slate-950 relative">
+
+      <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-4xl font-bold text-white mb-4">
+          <h2 className="text-5xl font-bold text-white mb-4">
             Welcome to ChatVerse
           </h2>
 
-          <p className="text-slate-400">
+          <p className="text-slate-400 text-lg">
             Select a conversation to start chatting.
           </p>
         </div>
-      </main>
-    );
-  }
+      </div>
+
+    </main>
+  );
+}
 
 
   return (
@@ -198,11 +189,11 @@ useEffect(() => {
       <div className="p-5 border-b border-slate-800 flex items-center gap-3">
 
         <button
-          onClick={() => setShowChat(false)}
-          className="md:hidden text-white text-2xl"
-        >
-          ←
-        </button>
+  onClick={() => setSelectedUser(null)}
+  className="md:hidden text-white text-2xl"
+>
+  ←
+</button>
 
           <div>
             <h2 className="text-2xl font-bold text-white">
