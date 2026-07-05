@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { getUsers } from "../../services/userService";
 import socket from "../../services/socket";
 
-function Sidebar({ setSelectedUser }) {
+function Sidebar({ selectedUser,setSelectedUser, }) {
   const [users, setUsers] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const { user, logout } = useAuth();
@@ -39,7 +39,18 @@ function Sidebar({ setSelectedUser }) {
   }, []);
 
   return (
-    <aside className="w-80 bg-slate-900 border-r border-slate-800 flex flex-col">
+    <aside
+  className={`
+    ${selectedUser ? "hidden" : "flex"}
+    md:flex
+    w-full
+    md:w-80
+    bg-slate-900
+    border-r
+    border-slate-800
+    flex-col
+  `}
+>
 
       {/* Header */}
       <div className="p-5 border-b border-slate-800">
@@ -87,7 +98,10 @@ function Sidebar({ setSelectedUser }) {
            <UserCard
               key={u._id}
               user={u}
-              onSelect={setSelectedUser}
+              onSelect={(user) => {
+                setSelectedUser(user);
+                setShowChat(true);
+              }}
               online={onlineUsers.includes(u._id)}
             />
           ))}

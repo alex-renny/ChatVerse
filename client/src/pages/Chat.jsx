@@ -3,14 +3,22 @@ import Sidebar from "../components/layout/Sidebar";
 import ChatWindow from "../components/layout/ChatWindow";
 
 function Chat() {
-    const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showChat, setShowChat] = useState(false);
+
   return (
-    <div className="h-screen bg-slate-950 flex overflow-hidden">
+    <div className="h-screen flex bg-slate-950 overflow-hidden">
+      <Sidebar
+        setSelectedUser={setSelectedUser}
+        showChat={showChat}
+        setShowChat={setShowChat}
+      />
 
-      <Sidebar setSelectedUser={setSelectedUser} />
-
-      <ChatWindow selectedUser={selectedUser} />
-
+      <ChatWindow
+        selectedUser={selectedUser}
+        showChat={showChat}
+        setShowChat={setShowChat}
+      />
     </div>
   );
 }
