@@ -59,3 +59,21 @@ export const markAsSeen = async (senderId) => {
 
   return data;
 };
+
+export const reactToMessage = async (messageId, emoji) => {
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(
+    `http://localhost:5000/api/messages/react/${messageId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ emoji }),
+    }
+  );
+
+  return res.json();
+};

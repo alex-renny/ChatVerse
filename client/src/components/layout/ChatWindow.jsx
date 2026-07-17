@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import {getMessages,sendMessage,deleteMessage,markAsSeen,} from "../../services/messageService";
+import {getMessages,sendMessage,deleteMessage,markAsSeen,reactToMessage} from "../../services/messageService";
 import socket from "../../services/socket";
 import { useAuth } from "../../context/AuthContext";
 import MessageMenu from "../chat/MessageMenu";
@@ -23,9 +23,24 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [previewImage, setPreviewImage] = useState(null);
   const [typing, setTyping] = useState(false);
   const [replyMessage, setReplyMessage] = useState(null);
+  const [reactionMenu, setReactionMenu] = useState(null);
 
   const handleEmojiClick = (emojiData) => {
   setText((prev) => prev + emojiData.emoji);
+};
+
+const handleReaction = async (messageId, emoji) => {
+  try {
+    const updatedMessage = await reactToMessage(messageId, emoji);
+
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg._id === updatedMessage._id ? updatedMessage : msg
+      )
+    );
+  } catch (error) {
+    console.error(error);
+  }
 };
 
   const handleSend = async () => {
@@ -247,9 +262,15 @@ useEffect(() => {
           onContextMenu={(e) => {
             e.preventDefault();
 
-            setMenu({
+            setReactionMenu({
               x: e.pageX,
               y: e.pageY,
+              message: msg,
+            });
+
+            setMenu({
+              x: e.pageX,
+              y: e.pageY + 55,
               message: msg,
             });
           }}
@@ -291,6 +312,26 @@ useEffect(() => {
 
                 {msg.text && (
                   <p>{msg.text}</p>
+                )}
+
+                {msg.reactions && msg.reactions.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {[...new Set(msg.reactions.map((r) => r.emoji))].map((emoji) => {
+                      const count = msg.reactions.filter(
+                        (r) => r.emoji === emoji
+                      ).length;
+
+                      return (
+                        <div
+                          key={emoji}
+                          className="bg-slate-800 border border-slate-600 rounded-full px-2 py-1 text-xs flex items-center gap-1"
+                        >
+                          <span>{emoji}</span>
+                          <span>{count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
 
               </div>
@@ -470,6 +511,29 @@ useEffect(() => {
       </div>
 
     </div>
+
+    {reactionMenu && (
+      <div
+        className="fixed bg-slate-800 rounded-full shadow-xl px-2 py-2 flex gap-2 z-50 border border-slate-700"
+        style={{
+          left: reactionMenu.x,
+          top: reactionMenu.y - 60,
+        }}
+      >
+        {["❤️", "😂", "👍", "😮", "😢", "🙏"].map((emoji) => (
+          <button
+            key={emoji}
+            className="text-2xl hover:scale-125 transition"
+            onClick={() => {
+              handleReaction(reactionMenu.message._id, emoji);
+              setReactionMenu(null);
+            }}
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+    )}
 
       {menu && (
         <MessageMenu
