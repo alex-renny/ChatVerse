@@ -31,6 +31,16 @@ const receiverSocketId = onlineUsers.get(receiver);
 if (receiverSocketId) {
   message.delivered = true;
   await message.save();
+  const receiverSocket = onlineUsers.get(message.receiver.toString());
+  const senderSocket = onlineUsers.get(message.sender.toString());
+
+  if (receiverSocket) {
+    io.to(receiverSocket).emit("messageReaction", message);
+  }
+
+  if (senderSocket) {
+    io.to(senderSocket).emit("messageReaction", message);
+  }
 
   io.to(receiverSocketId).emit("receiveMessage", message);
 }
