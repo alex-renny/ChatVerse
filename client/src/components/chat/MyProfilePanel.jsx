@@ -1,6 +1,32 @@
 import { FiX } from "react-icons/fi";
+import { uploadProfilePicture } from "../../services/profileService";
+import { useState, useRef } from "react";
 
 function MyProfilePanel({ user, onClose }) {
+
+    const fileInputRef = useRef(null);
+    const [profile, setProfile] = useState(user);
+    const handleImageChange = async (e) => {
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+    try {
+        const updatedUser = await uploadProfilePicture(file);
+
+        setProfile(updatedUser);
+
+        localStorage.setItem(
+        "user",
+        JSON.stringify(updatedUser)
+        );
+
+    } catch (err) {
+        console.error(err);
+        alert("Upload failed");
+    }
+    };
+
   if (!user) return null;
 
   return (
@@ -22,20 +48,30 @@ function MyProfilePanel({ user, onClose }) {
         </div>
 
         {/* Avatar */}
-        <div className="flex flex-col items-center mt-8">
-          <div className="w-32 h-32 rounded-full bg-blue-600 flex items-center justify-center text-5xl font-bold text-white">
-            {user.name?.charAt(0).toUpperCase()}
-          </div>
+        <div className="flex justify-center mt-8">
+            <div
+                onClick={() => fileInputRef.current.click()}
+                className="w-32 h-32 rounded-full bg-blue-600 flex items-center justify-center text-5xl font-bold text-white cursor-pointer hover:scale-105 transition overflow-hidden"
+            >
+                {profile.profilePic ? (
+                <img
+                    src={`http://localhost:5000${profile.profilePic}?t=${Date.now()}`}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                />
+                ) : (
+                profile.name?.charAt(0).toUpperCase()
+                )}
+            </div>
 
-          <h3 className="mt-5 text-2xl font-bold text-white">
-            {user.name}
-          </h3>
-
-          <p className="text-slate-400">
-            {user.email}
-          </p>
+            <input
+                type="file"
+                ref={fileInputRef}
+                hidden
+                accept="image/*"
+                onChange={handleImageChange}
+            />
         </div>
-
         {/* About */}
         <div className="px-6 mt-8">
           <h4 className="text-blue-400 font-semibold mb-2">
@@ -43,7 +79,7 @@ function MyProfilePanel({ user, onClose }) {
           </h4>
 
           <div className="bg-slate-800 rounded-xl p-4 text-slate-300">
-            {user.bio || "Hey there! I'm using ChatVerse 💬"}
+            {profile.bio || "Hey there! I'm using ChatVerse 💬"}
           </div>
         </div>
 
@@ -54,8 +90,8 @@ function MyProfilePanel({ user, onClose }) {
           </h4>
 
           <div className="bg-slate-800 rounded-xl p-4 text-slate-300">
-            {user.createdAt
-              ? new Date(user.createdAt).toLocaleDateString()
+            {profile.createdAt
+              ? new Date(profile.createdAt).toLocaleDateString()
               : "Unknown"}
           </div>
         </div>

@@ -7,12 +7,17 @@ import connectDB from "./config/db.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import messageRoutes from "./routes/messageRoutes.js";
+import profileRoutes from "./routes/profileRoutes.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
 connectDB();
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const server = createServer(app);
 
 export const io = new Server(server, {
@@ -115,11 +120,11 @@ socket.on("stopTyping", ({ receiverId, senderId }) => {
 
 app.use(cors());
 app.use(express.json());
-import path from "path";
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/profile", profileRoutes);
+app.use("/uploads",express.static(path.join(__dirname, "uploads")));
 
 app.get("/", (req, res) => {
   res.send("🚀 ChatVerse API Running");

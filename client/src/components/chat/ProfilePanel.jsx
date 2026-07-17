@@ -22,21 +22,31 @@ function ProfilePanel({ user, onClose }) {
         </div>
 
         {/* Avatar */}
-        <div className="flex flex-col items-center mt-8">
+            <div className="flex flex-col items-center mt-8">
 
-          <div className="w-32 h-32 rounded-full bg-slate-700 flex items-center justify-center text-5xl text-white">
-            {user.name.charAt(0).toUpperCase()}
-          </div>
+            <div className="w-32 h-32 rounded-full overflow-hidden bg-slate-700 flex items-center justify-center text-5xl text-white font-bold">
 
-          <h3 className="mt-5 text-2xl font-bold text-white">
-            {user.name}
-          </h3>
+                {user.profilePic ? (
+                <img
+                    src={`http://localhost:5000${user.profilePic}?t=${Date.now()}`}
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                />
+                ) : (
+                user.name.charAt(0).toUpperCase()
+                )}
 
-          <p className="text-slate-400">
-            {user.email}
-          </p>
+            </div>
 
-        </div>
+            <h3 className="mt-5 text-2xl font-bold text-white">
+                {user.name}
+            </h3>
+
+            <p className="text-slate-400">
+                {user.email}
+            </p>
+
+            </div>
 
         {/* About */}
         <div className="mt-8 px-6">
