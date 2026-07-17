@@ -17,3 +17,11 @@ export const uploadProfilePicture = async (file) => {
 
   return data;
 };
+export const updateProfile = async (profileData) => {
+  const { data } = await API.put(
+    "/profile/update",
+    profileData
+  );
+
+  return data;
+};

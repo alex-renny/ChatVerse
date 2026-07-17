@@ -32,11 +32,16 @@ const userSchema = new mongoose.Schema(
       default: "Hey there! I'm using ChatVerse 💬",
     },
 
+    status: {
+      type: String,
+      default: "Available"
+    },
+
     lastSeen: {
       type: Date,
       default: Date.now,
     },
-    
+
     isOnline: {
       type: Boolean,
       default: false,
