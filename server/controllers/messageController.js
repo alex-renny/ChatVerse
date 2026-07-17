@@ -139,3 +139,50 @@ export const deleteMessage = async (req, res) => {
     });
   }
 };
+
+export const reactToMessage = async (req, res) => {
+  try {
+    const { emoji } = req.body;
+    const { messageId } = req.params;
+    const userId = req.user.id;
+
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      return res.status(404).json({
+        message: "Message not found",
+      });
+    }
+
+    const existingReaction = message.reactions.find(
+      (reaction) => reaction.user.toString() === userId
+    );
+
+    if (existingReaction) {
+      if (existingReaction.emoji === emoji) {
+        // Remove reaction if same emoji clicked
+        message.reactions = message.reactions.filter(
+          (reaction) => reaction.user.toString() !== userId
+        );
+      } else {
+        // Change reaction
+        existingReaction.emoji = emoji;
+      }
+    } else {
+      // Add new reaction
+      message.reactions.push({
+        user: userId,
+        emoji,
+      });
+    }
+
+    await message.save();
+
+    res.json(message);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Failed to react to message",
+    });
+  }
+};
