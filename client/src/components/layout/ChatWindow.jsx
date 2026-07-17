@@ -5,8 +5,8 @@ import { useAuth } from "../../context/AuthContext";
 import MessageMenu from "../chat/MessageMenu";
 import EmojiPicker from "emoji-picker-react";
 import {FiPaperclip,FiImage,FiMic,FiSend,} from "react-icons/fi";
+import ProfilePanel from "../chat/ProfilePanel";
 import { IoCheckmark, IoCheckmarkDone } from "react-icons/io5";
-
 import { BsEmojiSmile } from "react-icons/bs";
 
 function ChatWindow({ selectedUser, setSelectedUser }) {
@@ -24,6 +24,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [typing, setTyping] = useState(false);
   const [replyMessage, setReplyMessage] = useState(null);
   const [reactionMenu, setReactionMenu] = useState(null);
+  const [showProfile, setShowProfile] = useState(false);
 
   const handleEmojiClick = (emojiData) => {
   setText((prev) => prev + emojiData.emoji);
@@ -214,13 +215,16 @@ useEffect(() => {
       <div className="p-5 border-b border-slate-800 flex items-center gap-3">
 
         <button
-  onClick={() => setSelectedUser(null)}
-  className="md:hidden text-white text-2xl"
->
-  ←
-</button>
+          onClick={() => setSelectedUser(null)}
+          className="md:hidden text-white text-2xl"
+        >
+          ←
+        </button>
 
-          <div>
+          <div
+            onClick={() => setShowProfile(true)}
+            className="cursor-pointer"
+          >
             <h2 className="text-2xl font-bold text-white">
               {selectedUser.name}
             </h2>
@@ -599,6 +603,13 @@ useEffect(() => {
       className="max-w-[90%] max-h-[90%] rounded-xl shadow-2xl"
     />
   </div>
+)}
+
+{showProfile && (
+  <ProfilePanel
+    user={selectedUser}
+    onClose={() => setShowProfile(false)}
+  />
 )}
 
     </main>

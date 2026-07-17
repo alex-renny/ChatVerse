@@ -22,25 +22,26 @@ const userSchema = new mongoose.Schema(
       minlength: 6,
     },
 
-    profilePicture: {
+    profilePic: {
       type: String,
       default: "",
     },
 
     bio: {
       type: String,
-      default: "",
-    },
-
-    isOnline: {
-      type: Boolean,
-      default: false,
+      default: "Hey there! I'm using ChatVerse 💬",
     },
 
     lastSeen: {
       type: Date,
       default: Date.now,
     },
+    
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+
   },
   {
     timestamps: true,

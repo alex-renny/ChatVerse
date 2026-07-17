@@ -1,8 +1,11 @@
 import { useAuth } from "../../context/AuthContext";
 import UserCard from "./UserCard";
-import { useEffect, useState } from "react";
+import { useEffect, useState,useRef } from "react";
 import {getConversationUsers,getUsers} from "../../services/userService";
 import socket from "../../services/socket";
+import { FiMoreVertical } from "react-icons/fi";
+import ProfileMenu from "../chat/ProfileMenu";
+import MyProfilePanel from "../chat/MyProfilePanel";
 
 function Sidebar({ selectedUser,setSelectedUser, }) {
   const [users, setUsers] = useState([]);
@@ -10,11 +13,29 @@ function Sidebar({ selectedUser,setSelectedUser, }) {
   const [search, setSearch] = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]);
   const { user, logout } = useAuth();
+  const [showMenu, setShowMenu] = useState(false);
+  const [showMyProfile, setShowMyProfile] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const menuRef = useRef(null);
 
   const handleLogout = () => {
   socket.disconnect();
   logout();
 };
+
+useEffect(() => {
+  function handleClickOutside(event) {
+    if (menuRef.current && !menuRef.current.contains(event.target)) {
+      setShowMenu(false);
+    }
+  }
+
+  document.addEventListener("mousedown", handleClickOutside);
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
 
   useEffect(() => {
   const loadUsers = async () => {
@@ -57,7 +78,7 @@ function Sidebar({ selectedUser,setSelectedUser, }) {
     <aside className="w-full md:w-80 h-screen bg-slate-900 border-r border-slate-800 flex flex-col">
 
       {/* Header */}
-      <div className="p-5 border-b border-slate-800">
+      <div className="relative p-5 border-b border-slate-800">
 
         <div className="flex justify-between items-center">
 
@@ -71,12 +92,34 @@ function Sidebar({ selectedUser,setSelectedUser, }) {
             </p>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="text-red-400 hover:text-red-300"
-          >
-            Logout
-          </button>
+          <div className="relative" ref={menuRef}>
+
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="text-white text-2xl"
+            >
+              <FiMoreVertical />
+            </button>
+
+            {showMenu && (
+              <ProfileMenu
+                onProfile={() => {
+                  setShowMenu(false);
+                  setShowMyProfile(true);
+                }}
+                onSettings={() => {
+                  setShowMenu(false);
+                  setShowSettings(true);
+                }}
+                onTheme={() => {
+                  alert("Theme coming soon 🚀");
+                  setShowMenu(false);
+                }}
+                onLogout={handleLogout}
+              />
+            )}
+
+          </div>
 
         </div>
 
@@ -108,6 +151,13 @@ function Sidebar({ selectedUser,setSelectedUser, }) {
           />
         ))}
       </div>
+
+      {showMyProfile && (
+  <MyProfilePanel
+    user={user}
+    onClose={() => setShowMyProfile(false)}
+  />
+)}
 
     </aside>
   );
