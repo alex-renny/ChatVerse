@@ -380,32 +380,37 @@ useEffect(() => {
           </button>
 
           {selectionMode && (
-            <div className="flex items-center justify-between px-5 py-3 bg-slate-900 border-b border-slate-800">
+            <div className="border-b border-slate-800 bg-slate-900 px-5 py-3 flex items-center justify-between animate-slideDown">
+              
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => {
+                    setSelectionMode(false);
+                    setSelectedMessages([]);
+                  }}
+                  className="text-slate-400 hover:text-white text-xl"
+                >
+                  ✕
+                </button>
 
-              <button
-                onClick={() => {
-                  setSelectionMode(false);
-                  setSelectedMessages([]);
-                }}
-                className="text-white text-xl"
-              >
-                ✕
-              </button>
+                <div>
+                  <p className="text-white font-semibold">
+                    {selectedMessages.length} Selected
+                  </p>
 
-              <h2 className="text-white font-semibold">
-                {selectedMessages.length} Selected
-              </h2>
+                  <div className="h-[2px] w-28 mt-1 rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-cyan-400" />
+                </div>
+              </div>
 
               <button
                 onClick={deleteSelectedMessages}
-                className="text-red-400 text-xl hover:text-red-500"
+                className="text-red-400 hover:text-red-300 text-xl transition"
               >
                 🗑️
               </button>
 
             </div>
           )}
-
           {showChatMenu && (
             <div className="absolute right-0 mt-2 w-44 bg-slate-800 rounded-xl shadow-xl border border-slate-700 z-50">
 
