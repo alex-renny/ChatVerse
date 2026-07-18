@@ -17,9 +17,11 @@ export function AuthProvider({ children }) {
 
   socket.on("connect", () => {
     console.log("Socket connected:", socket.id);
-    console.log("Registering user:", user.id);
+    const userId = user._id || user.id;
 
-    socket.emit("registerUser", user.id);
+    console.log("Registering user:", userId);
+
+    socket.emit("registerUser", userId);
   });
 
   return () => {

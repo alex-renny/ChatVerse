@@ -14,6 +14,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const { user } = useAuth();
+  const currentUserId = user?._id || user?.id;
   const bottomRef = useRef(null);
   const [menu, setMenu] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -89,7 +90,7 @@ useEffect(() => {
 
       socket.emit("messagesSeen", {
         senderId: selectedUser._id,
-        receiverId: user.id,
+        receiverId: currentUserId,
       });
 
     } catch (error) {
@@ -168,7 +169,7 @@ useEffect(() => {
 
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.sender === user.id
+          msg.sender === currentUserId
             ? { ...msg, seen: true, delivered: true }
             : msg
         )
@@ -193,7 +194,7 @@ useEffect(() => {
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-5xl font-bold text-white mb-4">
-            Welcome to ChatVerse
+            Welcome to ReSender
           </h2>
 
           <p className="text-slate-400 text-lg">
@@ -267,7 +268,8 @@ useEffect(() => {
     </p>
   ) : (
     messages.map((msg) => {
-      const isMine = msg.sender === user.id;
+      const isMine = msg.sender === currentUserId;
+//      
       console.log("ReplyTo:", msg.replyTo);
 
       return (
@@ -304,7 +306,7 @@ useEffect(() => {
                 {msg.replyTo && (
                   <div className="mb-2 border-l-4 border-blue-400 bg-black/20 rounded-md px-3 py-1.5">
                     <p className="text-xs text-blue-300 font-semibold">
-                      {msg.replyTo.sender === user.id ? "You" : selectedUser.name}
+                      {msg.replyTo.sender === currentUserId ? "You" : selectedUser.name}
                     </p>
 
                     <p className="text-sm text-slate-300 truncate">
@@ -340,7 +342,7 @@ useEffect(() => {
                           key={emoji}
                           className={`rounded-full px-2 py-1 text-xs flex items-center gap-1 border ${
                             msg.reactions.some(
-                              (r) => r.user === user.id && r.emoji === emoji
+                              (r) => r.user === currentUserId && r.emoji === emoji
                             )
                               ? "bg-blue-600 border-blue-400"
                               : "bg-slate-800 border-slate-600"
@@ -408,7 +410,7 @@ useEffect(() => {
       <div className="bg-slate-800 border-l-4 border-blue-500 rounded-lg p-3 mb-3 flex items-start">
         <div>
           <p className="text-blue-400 text-sm font-semibold">
-            Replying to {replyMessage.sender === user.id ? "You" : selectedUser.name}
+            Replying to {replyMessage.sender === currentUserId ? "You" : selectedUser.name}
           </p>
 
           <p className="text-slate-300 text-sm truncate max-w-md px-4 py-2 rounded-2xl">
@@ -487,7 +489,7 @@ useEffect(() => {
           console.log("Sending typing event");
           socket.emit("typing", {
             receiverId: selectedUser._id,
-            senderId: user.id,
+            senderId: currentUserId,
           });
 
           clearTimeout(typingTimeout.current);
@@ -496,7 +498,7 @@ useEffect(() => {
 
             socket.emit("stopTyping", {
               receiverId: selectedUser._id,
-              senderId: user.id,
+              senderId: currentUserId,
             });
 
           }, 1000);

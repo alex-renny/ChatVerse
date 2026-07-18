@@ -3,7 +3,7 @@ function Navbar() {
     <header className="h-16 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-6 shadow-lg">
       <div>
         <h1 className="text-2xl font-bold text-emerald-400">
-          ChatVerse
+          ReSender
         </h1>
       </div>
 

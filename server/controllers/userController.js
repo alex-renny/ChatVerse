@@ -5,7 +5,7 @@ export const getConversationUsers = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    // Find every message where the logged-in user is sender or receiver
+    // Find all conversations involving the logged-in user
     const messages = await Message.find({
       $or: [
         { sender: userId },
@@ -13,7 +13,7 @@ export const getConversationUsers = async (req, res) => {
       ],
     });
 
-    // Collect the other user's IDs
+    // Get unique user IDs
     const userIds = new Set();
 
     messages.forEach((message) => {
@@ -28,9 +28,7 @@ export const getConversationUsers = async (req, res) => {
 
     const users = await User.find(
       {
-        _id: {
-          $in: [...userIds],
-        },
+        _id: { $in: [...userIds] },
       },
       "-password"
     );

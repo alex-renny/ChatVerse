@@ -127,7 +127,7 @@ app.use("/api/profile", profileRoutes);
 app.use("/uploads",express.static(path.join(__dirname, "uploads")));
 
 app.get("/", (req, res) => {
-  res.send("🚀 ChatVerse API Running");
+  res.send("🚀ReSender API Running");
 });
 
 const PORT = process.env.PORT || 5000;

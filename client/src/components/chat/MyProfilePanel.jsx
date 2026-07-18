@@ -140,7 +140,7 @@ function MyProfilePanel({ user, onClose }) {
             />
             ) : (
             <div className="bg-slate-800 rounded-xl p-4 text-slate-300">
-                {profile.bio || "Hey there! I'm using ChatVerse 💬"}
+                {profile.bio || "Hey there! I'm using ReSender 💬"}
             </div>
             )}
         </div>

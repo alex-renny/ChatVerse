@@ -10,12 +10,12 @@ app.use(express.json());
 // Test Route
 app.get("/", (req, res) => {
   res.json({
-    message: "Welcome to ChatVerse API 🚀",
+    message: "Welcome to ReSender API 🚀",
   });
 });
 app.get("/about", (req, res) => {
   res.json({
-    app: "ChatVerse",
+    app: "ReSender",
     version: "1.0.0",
   });
 });
