@@ -40,6 +40,9 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState([]);
 
+  const selectAllMessages = () => {
+  setSelectedMessages(messages.map(msg => msg._id));
+};
   const handleEmojiClick = (emojiData) => {
   setText((prev) => prev + emojiData.emoji);
 };
@@ -344,12 +347,11 @@ useEffect(() => {
     <main className="flex-1 flex flex-col bg-slate-950">
       
       {/* Header */}
-
 <div className="p-5 border-b border-slate-800 flex justify-between items-center">
 
   {selectionMode ? (
-
     <>
+      {/* Left Side */}
       <div className="flex items-center gap-4">
 
         <button
@@ -363,27 +365,26 @@ useEffect(() => {
         </button>
 
         <div>
-          <h2 className="text-xl font-semibold text-white">
+          <h2 className="text-lg font-semibold text-white">
             {selectedMessages.length} Selected
           </h2>
 
           <p className="text-xs text-slate-400">
-            Tap messages to select more
+            Select more messages
           </p>
         </div>
 
       </div>
 
+      {/* Right Side */}
       <button
         onClick={deleteSelectedMessages}
-        className="text-red-400 hover:text-red-300 text-xl transition"
+        className="w-10 h-10 rounded-full bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center text-red-400 text-xl transition"
       >
         🗑️
       </button>
     </>
-
   ) : (
-
     <>
       <div className="flex items-center gap-3">
 
@@ -436,65 +437,9 @@ useEffect(() => {
 
       </div>
     </>
-
   )}
-      </div>
 
-      {showSearch && (
-        <div className="border-b border-slate-800 p-3 flex items-center gap-2 animate-slideDown">
-
-          <input
-            ref={searchInputRef}
-            type="text"
-            className="flex-1 bg-slate-800 text-white rounded-lg px-3 py-2 outline-none"
-            placeholder="Search messages..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                    goToPreviousMatch();
-                }
-            }}
-        />
-
-        <button
-          onClick={goToPreviousMatch}
-          className="text-white hover:text-blue-400"
-        >
-          <FiChevronUp size={20} />
-        </button>
-
-        <button
-          onClick={goToNextMatch}
-          className="text-white hover:text-blue-400"
-        >
-          <FiChevronDown size={20} />
-        </button>
-          {searchText && matchedIndexes.length > 0 && (
-            <p className="text-sm text-slate-400 whitespace-nowrap self-center">
-              {currentMatch + 1} / {matchedIndexes.length}
-            </p>
-          )}
-
-          {searchText && matchedIndexes.length === 0 && (
-            <p className="text-sm text-red-400 whitespace-nowrap self-center">
-              0 results
-            </p>
-          )}
-
-          <button
-            onClick={() => {
-              setShowSearch(false);
-              setSearchText("");
-          }}
-            className="text-red-400"
-          >
-            ✕
-          </button>
-
-        </div>
-      )}
-
+</div>
       {/* Messages */}
 
       <div className="flex-1 overflow-y-auto p-5">
@@ -538,7 +483,7 @@ useEffect(() => {
           }`}
         >
 
-          {selectionMode && (
+          {/* {selectionMode && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -554,10 +499,30 @@ useEffect(() => {
                 <span className="text-white text-xs">✓</span>
               )}
             </button>
-          )}
+          )} */}
+
+          {selectionMode && (
+  <div
+    className={`mr-3 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
+      selectedMessages.includes(msg._id)
+        ? "bg-cyan-500 border-cyan-500 scale-110"
+        : "border-slate-500"
+    }`}
+  >
+    {selectedMessages.includes(msg._id) && (
+      <span className="text-white text-xs">✓</span>
+    )}
+  </div>
+)}
 
           <div
-            className={`relative max-w-md px-4 py-1.5 rounded-2xl text-white transition-all duration-300 ${
+            className={`relative max-w-md px-4 py-1.5 rounded-2xl text-white transition-all duration-300
+            ${
+              selectedMessages.includes(msg._id)
+                ? "ring-2 ring-cyan-400 shadow-[0_0_18px_rgba(34,211,238,0.25)]"
+                : ""
+            }
+            ${
               isMine
                 ? "bg-blue-600 rounded-br-md"
                 : "bg-slate-700 rounded-bl-md"
