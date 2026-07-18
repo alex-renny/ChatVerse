@@ -8,6 +8,7 @@ import {FiPaperclip,FiImage,FiMic,FiSend,} from "react-icons/fi";
 import ProfilePanel from "../chat/ProfilePanel";
 import { IoCheckmark, IoCheckmarkDone } from "react-icons/io5";
 import { BsEmojiSmile } from "react-icons/bs";
+import { FiChevronUp, FiChevronDown } from "react-icons/fi";
 
   import { FiMoreVertical } from "react-icons/fi";
 
@@ -35,9 +36,27 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [currentMatch, setCurrentMatch] = useState(0);
   const [showChatMenu, setShowChatMenu] = useState(false);
   const messageRefs = useRef([]);
+  const searchInputRef = useRef(null);
 
   const handleEmojiClick = (emojiData) => {
   setText((prev) => prev + emojiData.emoji);
+};
+
+const goToNextMatch = () => {
+  if (matchedIndexes.length === 0) return;
+
+  let next = currentMatch + 1;
+
+  if (next >= matchedIndexes.length) {
+    next = 0;
+  }
+
+  setCurrentMatch(next);
+
+  messageRefs.current[matchedIndexes[next]]?.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+  });
 };
 
 const handleReaction = async (messageId, emoji) => {
@@ -92,6 +111,12 @@ const goToPreviousMatch = () => {
     block: "center",
   });
 };
+
+useEffect(() => {
+  if (showSearch) {
+    searchInputRef.current?.focus();
+  }
+}, [showSearch]);
 
 useEffect(() => {
   if (!searchText.trim()) {
@@ -338,9 +363,10 @@ useEffect(() => {
       </div>
 
       {showSearch && (
-        <div className="border-b border-slate-800 p-3 flex gap-2">
+        <div className="border-b border-slate-800 p-3 flex items-center gap-2">
 
           <input
+            ref={searchInputRef}
             type="text"
             className="flex-1 bg-slate-800 text-white rounded-lg px-3 py-2 outline-none"
             placeholder="Search messages..."
@@ -352,9 +378,29 @@ useEffect(() => {
                 }
             }}
         />
-          {searchText && (
-            <p className="text-xs text-slate-400 mt-1">
-              {matchedIndexes.length} result(s)
+
+        <button
+          onClick={goToPreviousMatch}
+          className="text-white hover:text-blue-400"
+        >
+          <FiChevronUp size={20} />
+        </button>
+
+        <button
+          onClick={goToNextMatch}
+          className="text-white hover:text-blue-400"
+        >
+          <FiChevronDown size={20} />
+        </button>
+          {searchText && matchedIndexes.length > 0 && (
+            <p className="text-sm text-slate-400 whitespace-nowrap self-center">
+              {currentMatch + 1} / {matchedIndexes.length}
+            </p>
+          )}
+
+          {searchText && matchedIndexes.length === 0 && (
+            <p className="text-sm text-red-400 whitespace-nowrap self-center">
+              0 results
             </p>
           )}
 
