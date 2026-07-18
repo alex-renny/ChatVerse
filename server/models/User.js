@@ -47,6 +47,13 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
+    pinnedChats: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
   },
   {
     timestamps: true,

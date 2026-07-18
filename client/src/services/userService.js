@@ -9,3 +9,8 @@ export const getConversationUsers = async () => {
   const response = await API.get("/users/conversations");
   return response.data;
 };
+
+export const togglePinnedChat = async (userId) => {
+  const response = await API.put(`/users/${userId}/pin`);
+  return response.data;
+};

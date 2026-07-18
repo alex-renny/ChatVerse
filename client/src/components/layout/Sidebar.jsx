@@ -1,7 +1,7 @@
 import { useAuth } from "../../context/AuthContext";
 import UserCard from "./UserCard";
 import { useEffect, useState,useRef } from "react";
-import {getConversationUsers,getUsers} from "../../services/userService";
+import {getConversationUsers,getUsers,togglePinnedChat} from "../../services/userService";
 import socket from "../../services/socket";
 import { FiMoreVertical } from "react-icons/fi";
 import ProfileMenu from "../chat/ProfileMenu";
@@ -73,6 +73,23 @@ useEffect(() => {
 
         return matches;
       });
+
+  const handleTogglePin = async (chatUser) => {
+    try {
+      const { pinned } = await togglePinnedChat(chatUser._id);
+      const updatePinnedState = (list) =>
+        list
+          .map((item) =>
+            item._id === chatUser._id ? { ...item, isPinned: pinned } : item
+          )
+          .sort((a, b) => Number(b.isPinned) - Number(a.isPinned));
+
+      setUsers(updatePinnedState);
+      setAllUsers(updatePinnedState);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   return (
     <aside className="w-full md:w-80 h-screen bg-slate-900 border-r border-slate-800 flex flex-col">
@@ -148,6 +165,7 @@ useEffect(() => {
             user={u}
             onSelect={setSelectedUser}
             online={onlineUsers.includes(u._id)}
+            onTogglePin={handleTogglePin}
           />
         ))}
       </div>

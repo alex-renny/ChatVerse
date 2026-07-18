@@ -32,6 +32,12 @@ const messageSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    attachment: {
+      url: String,
+      name: String,
+      mimeType: String,
+      size: Number,
+    },
     replyTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Message",

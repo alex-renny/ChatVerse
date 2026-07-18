@@ -1,4 +1,6 @@
-function UserCard({ user, onSelect, online }) {
+import { FiMapPin } from "react-icons/fi";
+
+function UserCard({ user, onSelect, online, onTogglePin }) {
   return (
     <div
       onClick={() => {
@@ -29,11 +31,14 @@ function UserCard({ user, onSelect, online }) {
               {user.name}
             </h3>
 
-            <div
-              className={`w-3 h-3 rounded-full ${
-                online ? "bg-green-500" : "bg-gray-500"
-              }`}
-            />
+            <div className="flex items-center gap-3">
+              {user.isPinned && <FiMapPin className="text-blue-400" aria-label="Pinned chat" />}
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  online ? "bg-green-500" : "bg-gray-500"
+                }`}
+              />
+            </div>
           </div>
 
           <p className="text-slate-400 text-sm mt-1">
@@ -42,6 +47,17 @@ function UserCard({ user, onSelect, online }) {
         </div>
 
       </div>
+      <button
+        onClick={(event) => {
+          event.stopPropagation();
+          onTogglePin(user);
+        }}
+        className={`mt-2 text-xs ${
+          user.isPinned ? "text-blue-400" : "text-slate-400 hover:text-white"
+        }`}
+      >
+        {user.isPinned ? "Unpin chat" : "Pin chat"}
+      </button>
     </div>
   );
 }

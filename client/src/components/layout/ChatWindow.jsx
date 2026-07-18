@@ -21,6 +21,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [typing, setTyping] = useState(false);
   const [replyMessage, setReplyMessage] = useState(null);
@@ -46,14 +47,20 @@ const handleReaction = async (messageId, emoji) => {
 };
 
   const handleSend = async () => {
-  if (!text.trim() && !selectedImage) return;
+  if (!text.trim() && !selectedImage && !selectedFile) return;
 
   try {
-    const newMessage = await sendMessage(selectedUser._id,text,selectedImage,replyMessage?._id);
+    const newMessage = await sendMessage(
+      selectedUser._id,
+      text,
+      selectedImage || selectedFile,
+      replyMessage?._id
+    );
 
     setMessages((prev) => [...prev, newMessage]);
     setText("");
     setSelectedImage(null);
+    setSelectedFile(null);
     setReplyMessage(null);
 
   } catch (error) {
@@ -62,12 +69,15 @@ const handleReaction = async (messageId, emoji) => {
 };
 
 useEffect(() => {
-  const closeMenu = () => setMenu(null);
+  const closeMenus = () => {
+    setMenu(null);
+    setReactionMenu(null);
+  };
 
-  window.addEventListener("click", closeMenu);
+  window.addEventListener("click", closeMenus);
 
   return () => {
-    window.removeEventListener("click", closeMenu);
+    window.removeEventListener("click", closeMenus);
   };
 }, []);
 
@@ -257,6 +267,12 @@ useEffect(() => {
       </div>
     </div>
   )}
+  {selectedFile && (
+    <div className="mx-4 mb-2 flex items-center justify-between rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-slate-200">
+      <span className="truncate">{selectedFile.name}</span>
+      <button onClick={() => setSelectedFile(null)} className="ml-3 text-red-400" aria-label="Remove selected file">×</button>
+    </div>
+  )}
 
       {/* Messages */}
 
@@ -275,6 +291,7 @@ useEffect(() => {
       return (
         <div
           key={msg._id}
+          onDoubleClick={() => handleReaction(msg._id, "\u2764\uFE0F")}
           onContextMenu={(e) => {
             e.preventDefault();
 
@@ -328,6 +345,17 @@ useEffect(() => {
 
                 {msg.text && (
                   <p>{msg.text}</p>
+                )}
+
+                {msg.attachment && (
+                  <a
+                    href={`http://localhost:5000${msg.attachment.url}`}
+                    download={msg.attachment.name}
+                    className="mt-2 flex items-center gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm text-blue-200 hover:bg-black/30"
+                  >
+                    <FiPaperclip />
+                    <span className="truncate">{msg.attachment.name}</span>
+                  </a>
                 )}
 
                 {msg.reactions && msg.reactions.length > 0 && (
@@ -463,6 +491,12 @@ useEffect(() => {
         ref={fileInputRef}
         type="file"
         hidden
+        onChange={(e) => {
+          if (e.target.files.length > 0) {
+            setSelectedFile(e.target.files[0]);
+            setSelectedImage(null);
+          }
+        }}
       />
 
       <input
@@ -473,6 +507,7 @@ useEffect(() => {
         onChange={(e) => {
           if (e.target.files.length > 0) {
             setSelectedImage(e.target.files[0]);
+            setSelectedFile(null);
           }
         }}
       />

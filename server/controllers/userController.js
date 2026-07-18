@@ -26,6 +26,11 @@ export const getConversationUsers = async (req, res) => {
       }
     });
 
+    const currentUser = await User.findById(userId).select("pinnedChats");
+    const pinnedChatIds = new Set(
+      currentUser.pinnedChats.map((chatId) => chatId.toString())
+    );
+
     const users = await User.find(
       {
         _id: { $in: [...userIds] },
@@ -33,7 +38,14 @@ export const getConversationUsers = async (req, res) => {
       "-password"
     );
 
-    res.json(users);
+    res.json(
+      users
+        .map((user) => ({
+          ...user.toObject(),
+          isPinned: pinnedChatIds.has(user._id.toString()),
+        }))
+        .sort((a, b) => Number(b.isPinned) - Number(a.isPinned))
+    );
 
   } catch (error) {
     console.error(error);
@@ -60,5 +72,26 @@ export const getUsers = async (req, res) => {
     res.status(500).json({
       message: "Server Error",
     });
+  }
+};
+
+export const togglePinnedChat = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(req.user._id);
+
+    const isPinned = user.pinnedChats.some(
+      (chatId) => chatId.toString() === userId
+    );
+
+    user.pinnedChats = isPinned
+      ? user.pinnedChats.filter((chatId) => chatId.toString() !== userId)
+      : [...user.pinnedChats, userId];
+
+    await user.save();
+    res.json({ userId, pinned: !isPinned });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Unable to update pinned chat" });
   }
 };

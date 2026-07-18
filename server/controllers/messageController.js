@@ -6,9 +6,16 @@ export const sendMessage = async (req, res) => {
   try {
     const { receiver, text, replyTo } = req.body;
 
-    const image = req.file
-      ? `/uploads/${req.file.filename}`
-      : "";
+    const uploadUrl = req.file ? `/uploads/${req.file.filename}` : "";
+    const image = req.file?.mimetype.startsWith("image/") ? uploadUrl : "";
+    const attachment = req.file && !image
+      ? {
+          url: uploadUrl,
+          name: req.file.originalname,
+          mimeType: req.file.mimetype,
+          size: req.file.size,
+        }
+      : undefined;
 
     const messageData = {
   sender: req.user._id,
@@ -16,6 +23,10 @@ export const sendMessage = async (req, res) => {
   text,
   image,
 };
+
+if (attachment) {
+  messageData.attachment = attachment;
+}
 
 if (replyTo) {
   messageData.replyTo = replyTo;
@@ -128,8 +139,11 @@ export const deleteMessage = async (req, res) => {
       });
     }
 
-    // Only the sender can delete their own message
-    if (message.sender.toString() !== req.user._id.toString()) {
+    // Either participant in the conversation can delete a message.
+    if (
+      message.sender.toString() !== req.user._id.toString() &&
+      message.receiver.toString() !== req.user._id.toString()
+    ) {
       return res.status(403).json({
         message: "Not authorized",
       });
@@ -187,6 +201,12 @@ export const reactToMessage = async (req, res) => {
     }
 
     await message.save();
+
+    const receiverSocket = onlineUsers.get(message.receiver.toString());
+    const senderSocket = onlineUsers.get(message.sender.toString());
+
+    if (receiverSocket) io.to(receiverSocket).emit("messageReaction", message);
+    if (senderSocket) io.to(senderSocket).emit("messageReaction", message);
 
     res.json(message);
   } catch (error) {

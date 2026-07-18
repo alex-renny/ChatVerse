@@ -14,14 +14,14 @@ export const getMessages = async (receiverId) => {
   return data;
 };
 
-export const sendMessage = async (receiver, text, image, replyTo) => {
+export const sendMessage = async (receiver, text, attachment, replyTo) => {
   const formData = new FormData();
 
   formData.append("receiver", receiver);
   formData.append("text", text);
 
-  if (image) {
-    formData.append("image", image);
+  if (attachment) {
+    formData.append("attachment", attachment);
   }
 
   if (replyTo) {
