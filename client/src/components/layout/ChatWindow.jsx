@@ -453,16 +453,15 @@ useEffect(() => {
           }`}
         >
           <div
-            className={`max-w-md px-4 py-1.5 rounded-2xl text-white transition-all ${
-              matchedIndexes[currentMatch] === index
-                ? "ring-2 ring-green-400"
-                : ""
-            } ${
+            className={`relative max-w-md px-4 py-1.5 rounded-2xl text-white transition-all duration-300 ${
               isMine
                 ? "bg-blue-600 rounded-br-md"
                 : "bg-slate-700 rounded-bl-md"
             }`}
           >
+            {matchedIndexes[currentMatch] === index && (
+  <div className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-300 via-blue-500 to-cyan-300 animate-pulse" />
+)}
             <div>
               <div>
                 {msg.replyTo && (
