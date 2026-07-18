@@ -1,4 +1,4 @@
-import { FiX } from "react-icons/fi";
+import { FiTrash2, FiX } from "react-icons/fi";
 import { useState, useRef } from "react";
 import {uploadProfilePicture,updateProfile,} from "../../services/profileService";
 
@@ -51,6 +51,18 @@ function MyProfilePanel({ user, onClose }) {
     }
     };
 
+    const handleRemoveProfilePicture = async () => {
+        try {
+            const updatedUser = await updateProfile({ profilePic: "" });
+
+            setProfile(updatedUser);
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+        } catch (err) {
+            console.error(err);
+            alert("Failed to remove profile picture");
+        }
+    };
+
   if (!user) return null;
 
   return (
@@ -73,18 +85,31 @@ function MyProfilePanel({ user, onClose }) {
 
         {/* Avatar */}
         <div className="flex justify-center mt-8">
-            <div
-                onClick={() => fileInputRef.current.click()}
-                className="w-32 h-32 rounded-full bg-blue-600 flex items-center justify-center text-5xl font-bold text-white cursor-pointer hover:scale-105 transition overflow-hidden"
-            >
-                {profile.profilePic ? (
-                <img
-                    src={`http://localhost:5000${profile.profilePic}?t=${Date.now()}`}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                />
-                ) : (
-                profile.name?.charAt(0).toUpperCase()
+            <div className="relative">
+                <div
+                    onClick={() => fileInputRef.current.click()}
+                    className="w-32 h-32 rounded-full bg-blue-600 flex items-center justify-center text-5xl font-bold text-white cursor-pointer hover:scale-105 transition overflow-hidden"
+                >
+                    {profile.profilePic ? (
+                    <img
+                        src={`http://localhost:5000${profile.profilePic}?t=${Date.now()}`}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                    />
+                    ) : (
+                    profile.name?.charAt(0).toUpperCase()
+                    )}
+                </div>
+
+                {profile.profilePic && (
+                    <button
+                        onClick={handleRemoveProfilePicture}
+                        aria-label="Remove profile picture"
+                        title="Remove profile picture"
+                        className="absolute bottom-0 right-0 rounded-full bg-red-600 p-2 text-white shadow-lg hover:bg-red-700"
+                    >
+                        <FiTrash2 />
+                    </button>
                 )}
             </div>
 

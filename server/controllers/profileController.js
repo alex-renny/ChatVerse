@@ -34,7 +34,7 @@ export const updateProfile = async (req, res) => {
             });
         }
 
-        const { name, bio, status } = req.body;
+        const { name, bio, status, profilePic } = req.body;
 
         if (name !== undefined)
             user.name = name;
@@ -44,6 +44,9 @@ export const updateProfile = async (req, res) => {
 
         if (status !== undefined)
             user.status = status;
+
+        if (profilePic !== undefined)
+            user.profilePic = profilePic;
 
         await user.save();
 
