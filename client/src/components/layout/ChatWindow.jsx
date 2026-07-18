@@ -9,6 +9,8 @@ import ProfilePanel from "../chat/ProfilePanel";
 import { IoCheckmark, IoCheckmarkDone } from "react-icons/io5";
 import { BsEmojiSmile } from "react-icons/bs";
 
+  import { FiMoreVertical } from "react-icons/fi";
+
 function ChatWindow({ selectedUser, setSelectedUser }) {
   const typingTimeout = useRef(null);
   const [messages, setMessages] = useState([]);
@@ -27,6 +29,12 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [replyMessage, setReplyMessage] = useState(null);
   const [reactionMenu, setReactionMenu] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [matchedIndexes, setMatchedIndexes] = useState([]);
+  const [currentMatch, setCurrentMatch] = useState(0);
+  const [showChatMenu, setShowChatMenu] = useState(false);
+  const messageRefs = useRef([]);
 
   const handleEmojiClick = (emojiData) => {
   setText((prev) => prev + emojiData.emoji);
@@ -67,6 +75,58 @@ const handleReaction = async (messageId, emoji) => {
     console.error(error);
   }
 };
+
+const goToPreviousMatch = () => {
+  if (matchedIndexes.length === 0) return;
+
+  let next = currentMatch - 1;
+
+  if (next < 0) {
+    next = matchedIndexes.length - 1;
+  }
+
+  setCurrentMatch(next);
+
+  messageRefs.current[matchedIndexes[next]]?.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+  });
+};
+
+useEffect(() => {
+  if (!searchText.trim()) {
+    setMatchedIndexes([]);
+    setCurrentMatch(0);
+    return;
+  }
+
+  const matches = [];
+
+  messages.forEach((msg, index) => {
+    if (
+      msg.text &&
+      msg.text.toLowerCase().includes(searchText.toLowerCase())
+    ) {
+      matches.push(index);
+    }
+  });
+
+  setMatchedIndexes(matches);
+
+  if (matches.length > 0) {
+  const lastMatch = matches[matches.length - 1];
+
+  // Save the POSITION in the matches array
+  setCurrentMatch(matches.length - 1);
+
+  setTimeout(() => {
+    messageRefs.current[lastMatch]?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, 100);
+}
+}, [searchText, messages]);
 
 useEffect(() => {
   const closeMenus = () => {
@@ -222,15 +282,16 @@ useEffect(() => {
     <main className="flex-1 flex flex-col bg-slate-950">
       
       {/* Header */}
+      <div className="p-5 border-b border-slate-800 flex justify-between items-center">
 
-      <div className="p-5 border-b border-slate-800 flex items-center gap-3">
+        <div className="flex items-center gap-3">
 
-        <button
-          onClick={() => setSelectedUser(null)}
-          className="md:hidden text-white text-2xl"
-        >
-          ←
-        </button>
+          <button
+            onClick={() => setSelectedUser(null)}
+            className="md:hidden text-white text-2xl"
+          >
+            ←
+          </button>
 
           <div
             onClick={() => setShowProfile(true)}
@@ -245,34 +306,67 @@ useEffect(() => {
             </p>
           </div>
 
+        </div>
+
+        <div className="relative">
+
+          <button
+            onClick={() => setShowChatMenu(!showChatMenu)}
+            className="text-white text-2xl"
+          >
+            <FiMoreVertical />
+          </button>
+
+          {showChatMenu && (
+            <div className="absolute right-0 mt-2 w-44 bg-slate-800 rounded-xl shadow-xl border border-slate-700 z-50">
+
+              <button
+                onClick={() => {
+                  setShowSearch(true);
+                  setShowChatMenu(false);
+                }}
+                className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
+              >
+                🔍 Search
+              </button>
+
+            </div>
+          )}
+
+        </div>
+
       </div>
 
-  {selectedImage && (
-    <div className="px-4 pb-2">
-      <div className="relative w-fit">
+      {showSearch && (
+        <div className="border-b border-slate-800 p-3 flex gap-2">
 
-        <img
-          src={URL.createObjectURL(selectedImage)}
-          alt="Preview"
-          className="max-h-40 rounded-xl border border-slate-700"
+          <input
+            type="text"
+            className="flex-1 bg-slate-800 text-white rounded-lg px-3 py-2 outline-none"
+            placeholder="Search messages..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                    goToPreviousMatch();
+                }
+            }}
         />
+          {searchText && (
+            <p className="text-xs text-slate-400 mt-1">
+              {matchedIndexes.length} result(s)
+            </p>
+          )}
 
-        <button
-          onClick={() => setSelectedImage(null)}
-          className="absolute top-2 right-2 bg-red-600 rounded-full px-2 text-white"
-        >
-          ✕
-        </button>
+          <button
+            onClick={() => setShowSearch(false)}
+            className="text-red-400"
+          >
+            ✕
+          </button>
 
-      </div>
-    </div>
-  )}
-  {selectedFile && (
-    <div className="mx-4 mb-2 flex items-center justify-between rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-slate-200">
-      <span className="truncate">{selectedFile.name}</span>
-      <button onClick={() => setSelectedFile(null)} className="ml-3 text-red-400" aria-label="Remove selected file">×</button>
-    </div>
-  )}
+        </div>
+      )}
 
       {/* Messages */}
 
@@ -283,7 +377,7 @@ useEffect(() => {
       No messages yet.
     </p>
   ) : (
-    messages.map((msg) => {
+    messages.map((msg, index) => {
       const isMine = msg.sender === currentUserId;
 //      
       console.log("ReplyTo:", msg.replyTo);
@@ -291,6 +385,7 @@ useEffect(() => {
       return (
         <div
           key={msg._id}
+          ref={(el) => (messageRefs.current[index] = el)}
           onDoubleClick={() => handleReaction(msg._id, "\u2764\uFE0F")}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -312,7 +407,11 @@ useEffect(() => {
           }`}
         >
           <div
-            className={`max-w-md px-4 py-1.5 rounded-2xl text-white ${
+            className={`max-w-md px-4 py-1.5 rounded-2xl text-white transition-all ${
+              matchedIndexes[currentMatch] === index
+                ? "ring-2 ring-green-400"
+                : ""
+            } ${
               isMine
                 ? "bg-blue-600 rounded-br-md"
                 : "bg-slate-700 rounded-bl-md"
@@ -544,9 +643,11 @@ useEffect(() => {
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             handleSend();
+
           }
         }}
       />
+      
 
       {/* Mic */}
 
