@@ -37,9 +37,40 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [showChatMenu, setShowChatMenu] = useState(false);
   const messageRefs = useRef([]);
   const searchInputRef = useRef(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedMessages, setSelectedMessages] = useState([]);
 
   const handleEmojiClick = (emojiData) => {
   setText((prev) => prev + emojiData.emoji);
+};
+
+const deleteSelectedMessages = async () => {
+  try {
+    for (const id of selectedMessages) {
+      await deleteMessage(id);
+    }
+
+    setMessages((prev) =>
+      prev.filter((msg) => !selectedMessages.includes(msg._id))
+    );
+
+    setSelectedMessages([]);
+    setSelectionMode(false);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const toggleMessageSelection = (id) => {
+  setSelectionMode(true);
+
+  setSelectedMessages((prev) => {
+    if (prev.includes(id)) {
+      return prev.filter((msgId) => msgId !== id);
+    }
+
+    return [...prev, id];
+  });
 };
 
 const goToNextMatch = () => {
@@ -111,6 +142,12 @@ const goToPreviousMatch = () => {
     block: "center",
   });
 };
+
+useEffect(() => {
+  if (selectedMessages.length === 0) {
+    setSelectionMode(false);
+  }
+}, [selectedMessages]);
 
 useEffect(() => {
   if (showSearch) {
@@ -342,6 +379,33 @@ useEffect(() => {
             <FiMoreVertical />
           </button>
 
+          {selectionMode && (
+            <div className="flex items-center justify-between px-5 py-3 bg-slate-900 border-b border-slate-800">
+
+              <button
+                onClick={() => {
+                  setSelectionMode(false);
+                  setSelectedMessages([]);
+                }}
+                className="text-white text-xl"
+              >
+                ✕
+              </button>
+
+              <h2 className="text-white font-semibold">
+                {selectedMessages.length} Selected
+              </h2>
+
+              <button
+                onClick={deleteSelectedMessages}
+                className="text-red-400 text-xl hover:text-red-500"
+              >
+                🗑️
+              </button>
+
+            </div>
+          )}
+
           {showChatMenu && (
             <div className="absolute right-0 mt-2 w-44 bg-slate-800 rounded-xl shadow-xl border border-slate-700 z-50">
 
@@ -420,7 +484,6 @@ useEffect(() => {
       {/* Messages */}
 
       <div className="flex-1 overflow-y-auto p-5">
-
   {messages.length === 0 ? (
     <p className="text-slate-400">
       No messages yet.
@@ -435,7 +498,12 @@ useEffect(() => {
         <div
           key={msg._id}
           ref={(el) => (messageRefs.current[index] = el)}
-          onDoubleClick={() => handleReaction(msg._id, "\u2764\uFE0F")}
+          onClick={() => {
+            if (selectionMode) {
+              toggleMessageSelection(msg._id);
+            }
+          }}
+          onDoubleClick={() => handleReaction(msg._id, "❤️")}
           onContextMenu={(e) => {
             e.preventDefault();
 
@@ -451,10 +519,29 @@ useEffect(() => {
               message: msg,
             });
           }}
-          className={`flex mb-1 ${
+          className={`flex items-center gap-3 mb-1 ${
             isMine ? "justify-end" : "justify-start"
           }`}
         >
+
+          {selectionMode && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleMessageSelection(msg._id);
+              }}
+              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                selectedMessages.includes(msg._id)
+                  ? "bg-cyan-500 border-cyan-500 scale-110"
+                  : "border-slate-500 hover:border-cyan-400"
+              }`}
+            >
+              {selectedMessages.includes(msg._id) && (
+                <span className="text-white text-xs">✓</span>
+              )}
+            </button>
+          )}
+
           <div
             className={`relative max-w-md px-4 py-1.5 rounded-2xl text-white transition-all duration-300 ${
               isMine
@@ -756,6 +843,11 @@ useEffect(() => {
           }}
           onCopy={() => {
             navigator.clipboard.writeText(menu.message.text);
+            setMenu(null);
+          }}
+          onSelect={() => {
+            setSelectionMode(true);
+            toggleMessageSelection(menu.message._id);
             setMenu(null);
           }}
           onDelete={async () => {

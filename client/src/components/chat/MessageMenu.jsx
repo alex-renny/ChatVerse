@@ -1,4 +1,4 @@
-function MessageMenu({ x, y, onReply,onCopy, onDelete }) {
+function MessageMenu({ x, y, onReply,onCopy, onDelete, onSelect }) {
   return (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -23,6 +23,13 @@ function MessageMenu({ x, y, onReply,onCopy, onDelete }) {
       </button>
 
       <button
+        onClick={onSelect}
+        className="w-full text-left px-4 py-2 hover:bg-slate-700 text-white"
+      >
+        ✅ Select
+      </button>
+
+      <button
         onClick={() => {
             console.log("Button pressed");
             onDelete();
@@ -31,6 +38,10 @@ function MessageMenu({ x, y, onReply,onCopy, onDelete }) {
         >
         🗑 Delete
       </button>
+
+      {/* <button onClick={onSelect}>
+        ☑ Select
+    </button> */}
     </div>
   );
 }
