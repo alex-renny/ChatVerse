@@ -363,7 +363,7 @@ useEffect(() => {
       </div>
 
       {showSearch && (
-        <div className="border-b border-slate-800 p-3 flex items-center gap-2">
+        <div className="border-b border-slate-800 p-3 flex items-center gap-2 animate-slideDown">
 
           <input
             ref={searchInputRef}
@@ -405,7 +405,10 @@ useEffect(() => {
           )}
 
           <button
-            onClick={() => setShowSearch(false)}
+            onClick={() => {
+              setShowSearch(false);
+              setSearchText("");
+          }}
             className="text-red-400"
           >
             ✕
