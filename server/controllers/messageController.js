@@ -73,17 +73,20 @@ export const getMessages = async (req, res) => {
     const { receiverId } = req.params;
 
     const messages = await Message.find({
-  $or: [
-    {
-      sender: req.user._id,
-      receiver: receiverId,
-    },
-    {
-      sender: receiverId,
-      receiver: req.user._id,
-    },
-  ],
-})
+      $or: [
+        {
+          sender: req.user._id,
+          receiver: receiverId,
+        },
+        {
+          sender: receiverId,
+          receiver: req.user._id,
+        },
+      ],
+      deletedFor: {
+        $ne: req.user._id,
+      },
+    })
 .populate("replyTo")
 .sort({ createdAt: 1 });
 
@@ -149,7 +152,11 @@ export const deleteMessage = async (req, res) => {
       });
     }
 
-    await message.deleteOne();
+    if (!message.deletedFor.includes(req.user._id)) {
+      message.deletedFor.push(req.user._id);
+    }
+
+    await message.save();
 
     res.json({
       message: "Message deleted successfully",
