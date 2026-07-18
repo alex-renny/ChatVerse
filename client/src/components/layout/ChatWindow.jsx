@@ -344,91 +344,100 @@ useEffect(() => {
     <main className="flex-1 flex flex-col bg-slate-950">
       
       {/* Header */}
-      <div className="p-5 border-b border-slate-800 flex justify-between items-center">
 
-        <div className="flex items-center gap-3">
+<div className="p-5 border-b border-slate-800 flex justify-between items-center">
 
-          <button
-            onClick={() => setSelectedUser(null)}
-            className="md:hidden text-white text-2xl"
-          >
-            ←
-          </button>
+  {selectionMode ? (
 
-          <div
-            onClick={() => setShowProfile(true)}
-            className="cursor-pointer"
-          >
-            <h2 className="text-2xl font-bold text-white">
-              {selectedUser.name}
-            </h2>
+    <>
+      <div className="flex items-center gap-4">
 
-            <p className="text-slate-400">
-              {selectedUser.email}
-            </p>
+        <button
+          onClick={() => {
+            setSelectionMode(false);
+            setSelectedMessages([]);
+          }}
+          className="text-2xl text-white hover:text-red-400 transition"
+        >
+          ✕
+        </button>
+
+        <div>
+          <h2 className="text-xl font-semibold text-white">
+            {selectedMessages.length} Selected
+          </h2>
+
+          <p className="text-xs text-slate-400">
+            Tap messages to select more
+          </p>
+        </div>
+
+      </div>
+
+      <button
+        onClick={deleteSelectedMessages}
+        className="text-red-400 hover:text-red-300 text-xl transition"
+      >
+        🗑️
+      </button>
+    </>
+
+  ) : (
+
+    <>
+      <div className="flex items-center gap-3">
+
+        <button
+          onClick={() => setSelectedUser(null)}
+          className="md:hidden text-white text-2xl"
+        >
+          ←
+        </button>
+
+        <div
+          onClick={() => setShowProfile(true)}
+          className="cursor-pointer"
+        >
+          <h2 className="text-2xl font-bold text-white">
+            {selectedUser.name}
+          </h2>
+
+          <p className="text-slate-400">
+            {selectedUser.email}
+          </p>
+        </div>
+
+      </div>
+
+      <div className="relative">
+
+        <button
+          onClick={() => setShowChatMenu(!showChatMenu)}
+          className="text-white text-2xl"
+        >
+          <FiMoreVertical />
+        </button>
+
+        {showChatMenu && (
+          <div className="absolute right-0 mt-2 w-44 bg-slate-800 rounded-xl shadow-xl border border-slate-700 z-50">
+
+            <button
+              onClick={() => {
+                setShowSearch(true);
+                setShowChatMenu(false);
+              }}
+              className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
+            >
+              🔍 Search
+            </button>
+
           </div>
+        )}
 
-        </div>
+      </div>
+    </>
 
-        <div className="relative">
-
-          <button
-            onClick={() => setShowChatMenu(!showChatMenu)}
-            className="text-white text-2xl"
-          >
-            <FiMoreVertical />
-          </button>
-
-          {selectionMode && (
-            <div className="border-b border-slate-800 bg-slate-900 px-5 py-3 flex items-center justify-between animate-slideDown">
-              
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => {
-                    setSelectionMode(false);
-                    setSelectedMessages([]);
-                  }}
-                  className="text-slate-400 hover:text-white text-xl"
-                >
-                  ✕
-                </button>
-
-                <div>
-                  <p className="text-white font-semibold">
-                    {selectedMessages.length} Selected
-                  </p>
-
-                  <div className="h-[2px] w-28 mt-1 rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-cyan-400" />
-                </div>
-              </div>
-
-              <button
-                onClick={deleteSelectedMessages}
-                className="text-red-400 hover:text-red-300 text-xl transition"
-              >
-                🗑️
-              </button>
-
-            </div>
-          )}
-          {showChatMenu && (
-            <div className="absolute right-0 mt-2 w-44 bg-slate-800 rounded-xl shadow-xl border border-slate-700 z-50">
-
-              <button
-                onClick={() => {
-                  setShowSearch(true);
-                  setShowChatMenu(false);
-                }}
-                className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
-              >
-                🔍 Search
-              </button>
-
-            </div>
-          )}
-
-        </div>
-
+  )}
       </div>
 
       {showSearch && (
