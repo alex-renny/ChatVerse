@@ -58,6 +58,11 @@ deletedFor: [
     ref: "User",
   },
 ],
+
+deletedForEveryone: {
+  type: Boolean,
+  default: false,
+},
   },
   {
     timestamps: true,

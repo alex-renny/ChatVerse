@@ -83,12 +83,13 @@ export const getMessages = async (req, res) => {
           receiver: req.user._id,
         },
       ],
+
       deletedFor: {
         $ne: req.user._id,
       },
     })
-.populate("replyTo")
-.sort({ createdAt: 1 });
+    .populate("replyTo")
+    .sort({ createdAt: 1 });
 
     res.json(messages);
 
@@ -129,10 +130,11 @@ export const markAsSeen = async (req, res) => {
   }
 };
 
-// Delete a message
+// Delete a message (Delete for Me)
 export const deleteMessage = async (req, res) => {
   try {
     const { messageId } = req.params;
+    const { deleteForEveryone } = req.body;
 
     const message = await Message.findById(messageId);
 
@@ -142,29 +144,58 @@ export const deleteMessage = async (req, res) => {
       });
     }
 
-    // Either participant in the conversation can delete a message.
+    // Delete for Everyone
+    if (deleteForEveryone) {
+
+      // Only sender can delete for everyone
+      if (message.sender.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+          message: "Only sender can delete for everyone",
+        });
+      }
+
+      await message.deleteOne();
+
+      io.emit("messageDeleted", messageId);
+
+      return res.json({
+        message: "Deleted for everyone",
+      });
+    }
+
+    const userId = req.user._id.toString();
+
+    // Only sender or receiver can delete for themselves
     if (
-      message.sender.toString() !== req.user._id.toString() &&
-      message.receiver.toString() !== req.user._id.toString()
+      message.sender.toString() !== userId &&
+      message.receiver.toString() !== userId
     ) {
       return res.status(403).json({
         message: "Not authorized",
       });
     }
 
-    if (!message.deletedFor.includes(req.user._id)) {
-      message.deletedFor.push(req.user._id);
+    // Add current user to deletedFor
+    if (!message.deletedFor.includes(userId)) {
+      message.deletedFor.push(userId);
     }
 
-    await message.save();
+    // If both users deleted it, remove permanently
+    if (
+      message.deletedFor.includes(message.sender.toString()) &&
+      message.deletedFor.includes(message.receiver.toString())
+    ) {
+      await message.deleteOne();
+    } else {
+      await message.save();
+    }
 
     res.json({
-      message: "Message deleted successfully",
+      message: "Deleted for you",
     });
 
   } catch (error) {
     console.error(error);
-
     res.status(500).json({
       message: "Server Error",
     });

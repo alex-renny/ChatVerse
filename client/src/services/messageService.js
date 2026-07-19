@@ -37,15 +37,19 @@ export const sendMessage = async (receiver, text, attachment, replyTo) => {
   return data;
 };
 
-export const deleteMessage = async (messageId) => {
+export const deleteMessage = async (messageId, deleteForEveryone = false) => {
   const { data } = await axios.delete(`${API}/${messageId}`, {
     headers: {
       Authorization: `Bearer ${getToken()}`,
     },
+    data: {
+      deleteForEveryone,
+    },
   });
 
   return data;
-};
+};  
+
 export const markAsSeen = async (senderId) => {
   const { data } = await axios.put(
     `${API}/seen/${senderId}`,

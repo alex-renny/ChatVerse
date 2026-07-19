@@ -50,7 +50,8 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
 const deleteSelectedMessages = async () => {
   try {
     for (const id of selectedMessages) {
-      await deleteMessage(id);
+      // Delete only for yourself
+      await deleteMessage(id, false);
     }
 
     setMessages((prev) =>
@@ -815,37 +816,52 @@ useEffect(() => {
         <MessageMenu
           x={menu.x}
           y={menu.y}
-          onClose={() => setMenu(null)}
+
           onReply={() => {
             setReplyMessage(menu.message);
             setMenu(null);
           }}
+
           onCopy={() => {
             navigator.clipboard.writeText(menu.message.text);
             setMenu(null);
           }}
+
           onSelect={() => {
             setSelectionMode(true);
             toggleMessageSelection(menu.message._id);
             setMenu(null);
           }}
-          onDelete={async () => {
-  console.log("Delete clicked");
 
-  try {
-    await deleteMessage(menu.message._id);
+          isSender={menu.message.sender === currentUserId}
 
-    console.log("Deleted from server");
+          onDeleteForMe={async () => {
+            try {
+              await deleteMessage(menu.message._id, false);
 
-    setMessages((prev) =>
-      prev.filter((msg) => msg._id !== menu.message._id)
-    );
+              setMessages(prev =>
+                prev.filter(msg => msg._id !== menu.message._id)
+              );
 
-    setMenu(null);
-  } catch (error) {
-    console.error(error);
-  }
-}}  
+              setMenu(null);
+            } catch (err) {
+              console.error(err);
+            }
+          }}
+
+          onDeleteForEveryone={async () => {
+            try {
+              await deleteMessage(menu.message._id, true);
+
+              setMessages(prev =>
+                prev.filter(msg => msg._id !== menu.message._id)
+              );
+
+              setMenu(null);
+            } catch (err) {
+              console.error(err);
+            }
+          }}
         />
       )}
 

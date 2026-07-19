@@ -1,4 +1,4 @@
-function MessageMenu({ x, y, onReply,onCopy, onDelete, onSelect }) {
+function MessageMenu({ x, y, onReply,onCopy, onDeleteForMe,onDeleteForEveryone,onSelect,isSender, }) {
   return (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -30,14 +30,20 @@ function MessageMenu({ x, y, onReply,onCopy, onDelete, onSelect }) {
       </button>
 
       <button
-        onClick={() => {
-            console.log("Button pressed");
-            onDelete();
-        }}
-        className="w-full text-left px-4 py-3 hover:bg-red-700 text-red-300"
-        >
-        🗑 Delete
+        onClick={onDeleteForMe}
+        className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
+      >
+        🗑 Delete for Me
       </button>
+
+      {isSender && (
+        <button
+          onClick={onDeleteForEveryone}
+          className="w-full text-left px-4 py-3 hover:bg-red-700 text-red-300"
+        >
+          🌍 Delete for Everyone
+        </button>
+      )}
 
       {/* <button onClick={onSelect}>
         ☑ Select
