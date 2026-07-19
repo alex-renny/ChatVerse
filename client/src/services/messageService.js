@@ -81,3 +81,31 @@ export const reactToMessage = async (messageId, emoji) => {
 
   return res.json();
 };
+
+export const pinMessage = async (messageId) => {
+  const { data } = await axios.put(
+    `${API}/pin/${messageId}`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    }
+  );
+
+  return data;
+};
+
+export const unpinMessage = async (messageId) => {
+  const { data } = await axios.put(
+    `${API}/unpin/${messageId}`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    }
+  );
+
+  return data;
+};

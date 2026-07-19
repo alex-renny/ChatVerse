@@ -3,6 +3,9 @@ function MessageMenu({
   y,
   onReply,
   onCopy,
+  onPin,
+  isPinned,
+  onUnpin,
   onDeleteForMe,
   onDeleteForEveryone,
   onSelect,
@@ -44,6 +47,22 @@ function MessageMenu({
       >
         📋 <span>Copy</span>
       </button>
+
+      {isPinned ? (
+        <button
+          onClick={onUnpin}
+          className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
+        >
+          📍 Unpin Message
+        </button>
+      ) : (
+        <button
+          onClick={onPin}
+          className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
+        >
+          📌 Pin Message
+        </button>
+      )}
 
       <button
         onClick={onSelect}

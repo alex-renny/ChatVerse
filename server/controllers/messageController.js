@@ -266,3 +266,125 @@ export const reactToMessage = async (req, res) => {
     });
   }
 };
+
+export const togglePinMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      return res.status(404).json({
+        message: "Message not found",
+      });
+    }
+
+    // Remove previous pin in this conversation
+    const previouslyPinned = await Message.find({
+      $or: [
+        {
+          sender: message.sender,
+          receiver: message.receiver,
+        },
+        {
+          sender: message.receiver,
+          receiver: message.sender,
+        },
+      ],
+      pinned: true,
+    });
+
+    for (const msg of previouslyPinned) {
+      msg.pinned = false;
+      msg.pinnedBy = null;
+      msg.pinnedAt = null;
+      await msg.save();
+
+      const populated = await Message.findById(msg._id).populate("replyTo");
+
+      const senderSocket = onlineUsers.get(msg.sender.toString());
+      const receiverSocket = onlineUsers.get(msg.receiver.toString());
+
+      if (senderSocket) {
+        io.to(senderSocket).emit("messageUpdated", populated);
+      }
+
+      if (receiverSocket) {
+        io.to(receiverSocket).emit("messageUpdated", populated);
+      }
+    }
+
+    message.pinned = true;
+    message.pinnedBy = req.user._id;
+    message.pinnedAt = new Date();
+
+    await message.save();
+
+    const updatedMessage = await Message.findById(message._id)
+      .populate("replyTo");
+
+    const senderSocket = onlineUsers.get(message.sender.toString());
+    const receiverSocket = onlineUsers.get(message.receiver.toString());
+
+    if (senderSocket) {
+      io.to(senderSocket).emit("messageUpdated", updatedMessage);
+    }
+
+    if (receiverSocket) {
+      io.to(receiverSocket).emit("messageUpdated", updatedMessage);
+    }
+
+    res.json(updatedMessage);
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+
+export const unpinMessage = async (req, res) => {
+  try {
+
+    const { messageId } = req.params;
+
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      return res.status(404).json({
+        message: "Message not found",
+      });
+    }
+
+    message.pinned = false;
+    message.pinnedBy = null;
+    message.pinnedAt = null;
+
+    await message.save();
+
+    const updatedMessage = await Message.findById(message._id)
+      .populate("replyTo");
+
+    const senderSocket = onlineUsers.get(message.sender.toString());
+    const receiverSocket = onlineUsers.get(message.receiver.toString());
+
+    if (senderSocket) {
+      io.to(senderSocket).emit("messageUpdated", updatedMessage);
+    }
+
+    if (receiverSocket) {
+      io.to(receiverSocket).emit("messageUpdated", updatedMessage);
+    }
+
+    res.json(updatedMessage);
+
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};

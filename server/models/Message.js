@@ -64,6 +64,17 @@ deletedForEveryone: {
   default: false,
 },
 deletedAt: Date,
+pinned: {
+  type: Boolean,
+  default: false,
+},
+
+pinnedBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+},
+
+pinnedAt: Date,
   },
   {
     timestamps: true,
