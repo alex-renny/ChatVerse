@@ -289,6 +289,16 @@ useEffect(() => {
     )
   );
 });
+socket.on("messageUpdated", (updatedMessage) => {
+  setMessages((prev) =>
+    prev.map((msg) =>
+      msg._id === updatedMessage._id
+        ? updatedMessage
+        : msg
+    )
+  );
+});
+socket.off("messageUpdated");
 
   return () => {
     socket.off("typing", handleTyping);
@@ -546,31 +556,37 @@ useEffect(() => {
                   </div>
                 )}
 
-                {msg.image && (
-                  <img
-                    src={`http://localhost:5000${msg.image}`}
-                    alt="Shared"
-                    onClick={() =>
-                      setPreviewImage(`http://localhost:5000${msg.image}`)
-                    }
-                    className="rounded-xl mb-2 max-w-xs cursor-pointer hover:opacity-90 transition"
-                  />
-                )}
+                {msg.deletedForEveryone ? (
+                  <p className="italic text-slate-400">
+                    🚫 Message unavailable
+                  </p>
+                ) : (
+                  <>
+                    {msg.image && (
+                      <img
+                        src={`http://localhost:5000${msg.image}`}
+                        alt="Shared"
+                        onClick={() =>
+                          setPreviewImage(`http://localhost:5000${msg.image}`)
+                        }
+                        className="rounded-xl mb-2 max-w-xs cursor-pointer hover:opacity-90 transition"
+                      />
+                    )}
 
-                {msg.text && (
-                  <p>{msg.text}</p>
-                )}
+                    {msg.text && <p>{msg.text}</p>}
 
-                {msg.attachment && (
-                  <a
-                    href={`http://localhost:5000${msg.attachment.url}`}
-                    download={msg.attachment.name}
-                    className="mt-2 flex items-center gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm text-blue-200 hover:bg-black/30"
-                  >
-                    <FiPaperclip />
-                    <span className="truncate">{msg.attachment.name}</span>
-                  </a>
-                )}
+                    {msg.attachment && (
+                      <a
+                        href={`http://localhost:5000${msg.attachment.url}`}
+                        download={msg.attachment.name}
+                        className="mt-2 flex items-center gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm text-blue-200 hover:bg-black/30"
+                      >
+                        <FiPaperclip />
+                        <span className="truncate">{msg.attachment.name}</span>
+                      </a>
+                    )}
+                  </>
+                )} 
 
                 {msg.reactions && msg.reactions.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">

@@ -63,6 +63,7 @@ deletedForEveryone: {
   type: Boolean,
   default: false,
 },
+deletedAt: Date,
   },
   {
     timestamps: true,

@@ -154,13 +154,17 @@ export const deleteMessage = async (req, res) => {
         });
       }
 
-      await message.deleteOne();
+      message.deletedForEveryone = true;
+        message.deletedAt = new Date();
 
-      io.emit("messageDeleted", messageId);
+        await message.save();
 
-      return res.json({
-        message: "Deleted for everyone",
-      });
+        io.to(message.sender.toString()).emit("messageUpdated", message);
+        io.to(message.receiver.toString()).emit("messageUpdated", message);
+
+        return res.json({
+          message: "Deleted for everyone",
+        });
     }
 
     const userId = req.user._id.toString();
