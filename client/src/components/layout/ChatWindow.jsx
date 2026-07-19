@@ -451,27 +451,26 @@ useEffect(() => {
   ) : (
     <>
       <div className="flex items-center gap-3">
-
-        <button
-          onClick={() => setSelectedUser(null)}
-          className="md:hidden text-white text-2xl"
-        >
-          ←
-        </button>
-
         <div
           onClick={() => setShowProfile(true)}
-          className="cursor-pointer"
-        >
-          <h2 className="text-2xl font-bold text-white">
-            {selectedUser.name}
-          </h2>
+          className="flex items-center gap-3 cursor-pointer"
+          >
+          <img
+            src={
+              selectedUser.profilePic
+                ? `http://localhost:5000${selectedUser.profilePic}`
+                : "/default-avatar.png"
+            }
+            alt={selectedUser.name}
+            className="w-11 h-11 rounded-full object-cover border border-slate-700"
+          />
 
-          <p className="text-slate-400">
-            {selectedUser.email}
-          </p>
+          <div>
+            <h2 className="text-xl font-semibold text-white">
+              {selectedUser.name}
+            </h2>
+          </div>
         </div>
-
       </div>
 
       <div className="relative">
@@ -536,7 +535,7 @@ useEffect(() => {
           const isMine = msg.sender === currentUserId;
 //      
       console.log("ReplyTo:", msg.replyTo);
-
+    
       return (
         <MessageBubble
           onReply={(message) => {
