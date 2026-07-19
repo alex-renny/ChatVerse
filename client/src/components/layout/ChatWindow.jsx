@@ -297,13 +297,13 @@ socket.on("messageUpdated", (updatedMessage) => {
         : msg
     )
   );
-});
-socket.off("messageUpdated");
-
+}); 
   return () => {
     socket.off("typing", handleTyping);
     socket.off("stopTyping", handleStopTyping);
     socket.off("messageReaction");
+    socket.off("messageUpdated");
+
   };
 }, [selectedUser]);
 
@@ -868,11 +868,6 @@ useEffect(() => {
           onDeleteForEveryone={async () => {
             try {
               await deleteMessage(menu.message._id, true);
-
-              setMessages(prev =>
-                prev.filter(msg => msg._id !== menu.message._id)
-              );
-
               setMenu(null);
             } catch (err) {
               console.error(err);

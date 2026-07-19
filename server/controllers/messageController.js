@@ -159,8 +159,16 @@ export const deleteMessage = async (req, res) => {
 
         await message.save();
 
-        io.to(message.sender.toString()).emit("messageUpdated", message);
-        io.to(message.receiver.toString()).emit("messageUpdated", message);
+        const senderSocket = onlineUsers.get(message.sender.toString());
+        const receiverSocket = onlineUsers.get(message.receiver.toString());
+
+        if (senderSocket) {
+          io.to(senderSocket).emit("messageUpdated", message);
+        }
+
+        if (receiverSocket) {
+          io.to(receiverSocket).emit("messageUpdated", message);
+        }
 
         return res.json({
           message: "Deleted for everyone",
