@@ -40,6 +40,21 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState([]);
 
+  const reactionWidth = 280; // Approximate width of emoji bar
+  const reactionHeight = 60;
+
+  const reactionLeft =
+    reactionMenu &&
+    reactionMenu.x + reactionWidth > window.innerWidth
+      ? window.innerWidth - reactionWidth - 10
+      : reactionMenu?.x;
+
+  const reactionTop =
+    reactionMenu &&
+    reactionMenu.y - reactionHeight < 0
+      ? reactionMenu.y + 10
+      : reactionMenu?.y - reactionHeight;
+
   const selectAllMessages = () => {
   setSelectedMessages(messages.map(msg => msg._id));
 };
@@ -805,8 +820,8 @@ useEffect(() => {
       <div
         className="fixed bg-slate-800 rounded-full shadow-xl px-2 py-2 flex gap-2 z-50 border border-slate-700 animate-reactionPopup"
         style={{
-          left: reactionMenu.x,
-          top: reactionMenu.y - 60,
+          left: reactionLeft,
+          top: reactionTop,
         }}
       >
         {["❤️", "😂", "👍", "😮", "😢", "🙏"].map((emoji) => (
