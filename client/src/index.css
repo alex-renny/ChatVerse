@@ -74,3 +74,21 @@
 .animate-slideDown {
   animation: slideDown .25s ease;
 }
+
+.reply-highlight {
+  animation: replyFlash 1.8s ease;
+}
+
+@keyframes replyFlash {
+  0% {
+    background: rgba(59,130,246,.45);
+  }
+
+  50% {
+    background: rgba(59,130,246,.25);
+  }
+
+  100% {
+    background: transparent;
+  }
+}

@@ -62,6 +62,23 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   setText((prev) => prev + emojiData.emoji);
 };
 
+const scrollToMessage = (id) => {
+  const element = messageRefs.current[id];
+
+  if (!element) return;
+
+  element.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+  });
+
+  element.classList.add("reply-highlight");
+
+  setTimeout(() => {
+    element.classList.remove("reply-highlight");
+  }, 1800);
+};
+
 const deleteSelectedMessages = async () => {
   try {
     for (const id of selectedMessages) {
@@ -482,7 +499,11 @@ useEffect(() => {
       return (
         <div
           key={msg._id}
-          ref={(el) => (messageRefs.current[index] = el)}
+          ref={(el) => {
+            if (el) {
+              messageRefs.current[msg._id] = el;
+            }
+          }}
           onClick={() => {
             if (selectionMode) {
               toggleMessageSelection(msg._id);
@@ -560,7 +581,10 @@ useEffect(() => {
             <div>
               <div>
                 {msg.replyTo && (
-                  <div className="mb-2 border-l-4 border-blue-400 bg-black/20 rounded-md px-3 py-1.5">
+                  <div
+                    onClick={() => scrollToMessage(msg.replyTo._id)}
+                    className="mb-2 border-l-4 border-blue-400 bg-black/20 rounded-md px-3 py-1.5 cursor-pointer hover:bg-black/40 transition"
+                  >
                     <p className="text-xs text-blue-300 font-semibold">
                       {msg.replyTo.sender === currentUserId ? "You" : selectedUser.name}
                     </p>
