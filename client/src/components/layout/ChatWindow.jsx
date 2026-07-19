@@ -42,6 +42,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState([]);
   const [pinnedMessage, setPinnedMessage] = useState(null);
+  const [showBackgroundSubMenu, setShowBackgroundSubMenu] = useState(false);
 
   const reactionWidth = 280; // Approximate width of emoji bar
   const reactionHeight = 60;
@@ -63,9 +64,14 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
 };
   const handleEmojiClick = (emojiData) => {
   setText((prev) => prev + emojiData.emoji);
-};
+  };
+  const [chatBackground, setChatBackground] = useState(
+    localStorage.getItem("chatBackground") || ""
+  );
 
-const scrollToMessage = (id) => {
+  const bgInputRef = useRef(null);
+
+  const scrollToMessage = (id) => {
   const element = messageRefs.current[id];
 
   if (!element) return;
@@ -81,6 +87,8 @@ const scrollToMessage = (id) => {
     element.classList.remove("reply-highlight");
   }, 1800);
 };
+
+const [showBackgroundMenu, setShowBackgroundMenu] = useState(false);
 
 const deleteSelectedMessages = async () => {
   try {
@@ -408,7 +416,7 @@ useEffect(() => {
 
 
   return (
-    <main className="flex-1 flex justify-center bg-slate-950">
+    <main className="flex-1 flex justify-center" style={{backgroundImage: chatBackground? `url(${chatBackground})`: undefined,backgroundSize: "cover",backgroundPosition: "center",}}>
       <div className="w-full max-w-5xl flex flex-col">
       
         {/* Header */}
@@ -496,6 +504,57 @@ useEffect(() => {
                     🔍 Search
                   </button>
 
+                  <div
+                  className="relative"
+                  onMouseEnter={() => setShowBackgroundSubMenu(true)}
+                  onMouseLeave={() => setShowBackgroundSubMenu(false)}
+                >
+                  <button
+                    className="w-full flex justify-between items-center px-4 py-3 hover:bg-slate-700 text-white"
+                  >
+                    <span>🖼 Change BG</span>
+                    {/* <span>▶</span> */}
+                  </button>
+
+                  {showBackgroundSubMenu && (
+                    <div className="absolute top-0 right-full mr-1 w-56 bg-slate-800 rounded-xl border border-slate-700 shadow-2xl z-50">
+
+                      <button
+                        onClick={() => {
+                          bgInputRef.current.click();
+                          setShowChatMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
+                      >
+                        📷 Upload Photo
+                      </button>
+
+                      <button
+                        className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
+                      >
+                        🖼 Wallpapers
+                      </button>
+
+                      <button
+                        className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
+                      >
+                        🎨 Solid Colors
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          localStorage.removeItem("chatBackground");
+                          setChatBackground("");
+                          setShowChatMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-red-700 text-red-300"
+                      >
+                        🗑 Remove Background
+                      </button>
+
+                    </div>
+                  )}
+                </div>
                 </div>
               )}
 
@@ -803,7 +862,21 @@ useEffect(() => {
                 }
               }}
             />
+            <input
+              type="file"
+              hidden
+              accept="image/*"
+              ref={bgInputRef}
+              onChange={(e) => {
+                if (!e.target.files[0]) return;
 
+                const url = URL.createObjectURL(e.target.files[0]);
+
+                setChatBackground(url);
+
+                localStorage.setItem("chatBackground", url);
+              }}
+            />
             {/* Message Box */}
 
             <input
@@ -1000,7 +1073,52 @@ useEffect(() => {
           />
         )}
       </div>
-    </main>
+      {showBackgroundMenu && (
+  <div
+    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
+    onClick={() => setShowBackgroundMenu(false)}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="bg-slate-900 rounded-2xl w-80 border border-slate-700 shadow-2xl overflow-hidden"
+    >
+      <div className="px-5 py-4 border-b border-slate-700">
+        <h2 className="text-xl text-white font-semibold">
+          Chat Background
+        </h2>
+      </div>
+
+          <button
+            onClick={() => {
+              bgInputRef.current.click();
+              setShowBackgroundMenu(false);
+            }}
+            className="w-full text-left px-5 py-4 hover:bg-slate-800 text-white"
+          >
+            🖼 Upload Photo
+          </button>
+
+          <button
+            onClick={() => {
+              localStorage.removeItem("chatBackground");
+              setChatBackground("");
+              setShowBackgroundMenu(false);
+            }}
+            className="w-full text-left px-5 py-4 hover:bg-slate-800 text-red-400"
+          >
+            🗑 Remove Background
+          </button>
+
+          <button
+            onClick={() => setShowBackgroundMenu(false)}
+            className="w-full text-left px-5 py-4 hover:bg-slate-800 text-slate-300"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+)}
+     </main>
   );
 }
 
