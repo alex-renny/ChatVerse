@@ -28,7 +28,7 @@ function ProfilePanel({ user, onClose }) {
 
                 {user.profilePic ? (
                 <img
-                    src={`http://localhost:5000${user.profilePic}?t=${Date.now()}`}
+                    src={`https://chatverse-server-eoma.onrender.com${user.profilePic}?t=${Date.now()}`}
                     alt={user.name}
                     className="w-full h-full object-cover"
                 />

@@ -485,7 +485,7 @@ useEffect(() => {
                 <img
                   src={
                     selectedUser.profilePic
-                      ? `http://localhost:5000${selectedUser.profilePic}`
+                      ? `https://chatverse-server-eoma.onrender.com${selectedUser.profilePic}`
                       : "/default-avatar.png"
                   }
                   alt={selectedUser.name}
@@ -773,10 +773,10 @@ useEffect(() => {
                         <>
                           {msg.image && (
                             <img
-                              src={`http://localhost:5000${msg.image}`}
+                              src={`https://chatverse-server-eoma.onrender.com${msg.image}`}
                               alt="Shared"
                               onClick={() =>
-                                setPreviewImage(`http://localhost:5000${msg.image}`)
+                                setPreviewImage(`https://chatverse-server-eoma.onrender.com${msg.image}`)
                               }
                               className="rounded-xl mb-2 max-w-xs cursor-pointer hover:opacity-90 transition"
                             />
@@ -786,7 +786,7 @@ useEffect(() => {
 
                           {msg.attachment && (
                             <a
-                              href={`http://localhost:5000${msg.attachment.url}`}
+                              href={`https://chatverse-server-eoma.onrender.com${msg.attachment.url}`}
                               download={msg.attachment.name}
                               className="mt-2 flex items-center gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm text-blue-200 hover:bg-black/30"
                             >

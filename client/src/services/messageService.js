@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API = "http://localhost:5000/api/messages";
+const API = "https://chatverse-server-eoma.onrender.com/api/messages";
 
 const getToken = () => localStorage.getItem("token");
 
@@ -68,7 +68,7 @@ export const reactToMessage = async (messageId, emoji) => {
   const token = localStorage.getItem("token");
 
   const res = await fetch(
-    `http://localhost:5000/api/messages/react/${messageId}`,
+    `https://chatverse-server-eoma.onrender.com/api/messages/react/${messageId}`,
     {
       method: "PUT",
       headers: {
