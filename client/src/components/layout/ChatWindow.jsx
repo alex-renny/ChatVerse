@@ -70,6 +70,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   );
 
   const bgInputRef = useRef(null);
+  const backgroundTimer = useRef(null);
 
   const scrollToMessage = (id) => {
   const element = messageRefs.current[id];
@@ -87,9 +88,6 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
     element.classList.remove("reply-highlight");
   }, 1800);
 };
-
-const [showBackgroundMenu, setShowBackgroundMenu] = useState(false);
-
 const deleteSelectedMessages = async () => {
   try {
     for (const id of selectedMessages) {
@@ -131,7 +129,10 @@ const goToNextMatch = () => {
 
   setCurrentMatch(next);
 
-  messageRefs.current[matchedIndexes[next]]?.scrollIntoView({
+  const msgIndex = matchedIndexes[next];
+  const msgId = messages[msgIndex]._id;
+
+  messageRefs.current[msgId]?.scrollIntoView({
     behavior: "smooth",
     block: "center",
   });
@@ -184,11 +185,27 @@ const goToPreviousMatch = () => {
 
   setCurrentMatch(next);
 
-  messageRefs.current[matchedIndexes[next]]?.scrollIntoView({
-    behavior: "smooth",
-    block: "center",
-  });
-};
+  const msgIndex = matchedIndexes[next];
+  const msgId = messages[msgIndex]._id;
+
+  messageRefs.current[msgId]?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  };
+
+useEffect(() => {
+  const handleClickOutside = () => {
+    setShowChatMenu(false);
+    setShowBackgroundSubMenu(false);
+  };
+
+  window.addEventListener("click", handleClickOutside);
+
+  return () => {
+    window.removeEventListener("click", handleClickOutside);
+  };
+}, []);
 
 useEffect(() => {
   if (selectedMessages.length === 0) {
@@ -225,11 +242,12 @@ useEffect(() => {
   if (matches.length > 0) {
   const lastMatch = matches[matches.length - 1];
 
-  // Save the POSITION in the matches array
   setCurrentMatch(matches.length - 1);
 
   setTimeout(() => {
-    messageRefs.current[lastMatch]?.scrollIntoView({
+    const msgId = messages[lastMatch]._id;
+
+    messageRefs.current[msgId]?.scrollIntoView({
       behavior: "smooth",
       block: "center",
     });
@@ -485,15 +503,23 @@ useEffect(() => {
             <div className="relative">
 
               <button
-                onClick={() => setShowChatMenu(!showChatMenu)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowChatMenu(prev => !prev);
+                }}
                 className="text-white text-2xl"
               >
                 <FiMoreVertical />
               </button>
 
-              {showChatMenu && (
-                <div className="absolute right-0 mt-2 w-44 bg-slate-800 rounded-xl shadow-xl border border-slate-700 z-50">
 
+              {showChatMenu && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute right-0 mt-2 w-52 bg-slate-800 rounded-xl border border-slate-700 shadow-xl z-50"
+                >
+
+                  {/* Search */}
                   <button
                     onClick={() => {
                       setShowSearch(true);
@@ -504,57 +530,71 @@ useEffect(() => {
                     🔍 Search
                   </button>
 
+
+                  {/* Change Background */}
                   <div
-                  className="relative"
-                  onMouseEnter={() => setShowBackgroundSubMenu(true)}
-                  onMouseLeave={() => setShowBackgroundSubMenu(false)}
-                >
-                  <button
-                    className="w-full flex justify-between items-center px-4 py-3 hover:bg-slate-700 text-white"
-                  >
-                    <span>🖼 Change BG</span>
-                    {/* <span>▶</span> */}
-                  </button>
+                      className="relative"
+                      onMouseEnter={() => {
+                        clearTimeout(backgroundTimer.current);
+                        setShowBackgroundSubMenu(true);
+                      }}
+                      onMouseLeave={() => {
+                        backgroundTimer.current = setTimeout(() => {
+                          setShowBackgroundSubMenu(false);
+                        }, 500);
+                      }}
+                    >
 
-                  {showBackgroundSubMenu && (
-                    <div className="absolute top-0 right-full mr-1 w-56 bg-slate-800 rounded-xl border border-slate-700 shadow-2xl z-50">
+                    <button
+                      className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white flex items-center"
+                    >
+                      <span>🖼 Change BG</span>
+                      {/* <span className="ml-auto">▶</span> */}
+                    </button>
 
-                      <button
-                        onClick={() => {
-                          bgInputRef.current.click();
-                          setShowChatMenu(false);
+
+                    {showBackgroundSubMenu && (
+                      <div
+                        className="absolute top-0 right-full mr-2 w-56 bg-slate-800 rounded-xl border border-slate-700 shadow-xl"
+                        onMouseEnter={() => {
+                          clearTimeout(backgroundTimer.current);
+                          setShowBackgroundSubMenu(true);
                         }}
-                        className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
-                      >
-                        📷 Upload Photo
-                      </button>
-
-                      <button
-                        className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
-                      >
-                        🖼 Wallpapers
-                      </button>
-
-                      <button
-                        className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
-                      >
-                        🎨 Solid Colors
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          localStorage.removeItem("chatBackground");
-                          setChatBackground("");
-                          setShowChatMenu(false);
+                        onMouseLeave={() => {
+                          backgroundTimer.current = setTimeout(() => {
+                            setShowBackgroundSubMenu(false);
+                          }, 500);
                         }}
-                        className="w-full text-left px-4 py-3 hover:bg-red-700 text-red-300"
                       >
-                        🗑 Remove Background
-                      </button>
+                        <button
+                          onClick={() => {
+                            bgInputRef.current.click();
+                            setShowChatMenu(false);
+                            setShowBackgroundSubMenu(false);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
+                        >
+                          📷 Upload Photo
+                        </button>
 
-                    </div>
-                  )}
-                </div>
+
+                        <button
+                          onClick={() => {
+                            localStorage.removeItem("chatBackground");
+                            setChatBackground("");
+                            setShowChatMenu(false);
+                            setShowBackgroundSubMenu(false);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-red-700 text-red-300"
+                        >
+                          🗑 Remove Background
+                        </button>
+
+                      </div>
+                    )}
+
+                  </div>
+
                 </div>
               )}
 
@@ -563,6 +603,51 @@ useEffect(() => {
         )}
 
         </div>
+
+        {showSearch && (
+          <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center gap-3">
+
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  goToPreviousMatch();
+                }
+              }}
+              placeholder="Search messages..."
+              className="flex-1 bg-slate-800 text-white rounded-full px-4 py-2 outline-none"
+            />
+
+            <button
+              onClick={goToPreviousMatch}
+              className="text-white text-xl hover:text-cyan-400"
+            >
+              <FiChevronUp />
+            </button>
+
+            <button
+              onClick={goToNextMatch}
+              className="text-white text-xl hover:text-cyan-400"
+            >
+              <FiChevronDown />
+            </button>
+
+            <button
+              onClick={() => {
+                setShowSearch(false);
+                setSearchText("");
+                setMatchedIndexes([]);
+              }}
+              className="text-red-400 text-xl"
+            >
+              ✕
+            </button>
+
+          </div>
+        )}
             {/* Messages */}
 
             {pinnedMessage && (
@@ -1073,52 +1158,7 @@ useEffect(() => {
           />
         )}
       </div>
-      {showBackgroundMenu && (
-  <div
-    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
-    onClick={() => setShowBackgroundMenu(false)}
-  >
-    <div
-      onClick={(e) => e.stopPropagation()}
-      className="bg-slate-900 rounded-2xl w-80 border border-slate-700 shadow-2xl overflow-hidden"
-    >
-      <div className="px-5 py-4 border-b border-slate-700">
-        <h2 className="text-xl text-white font-semibold">
-          Chat Background
-        </h2>
-      </div>
-
-          <button
-            onClick={() => {
-              bgInputRef.current.click();
-              setShowBackgroundMenu(false);
-            }}
-            className="w-full text-left px-5 py-4 hover:bg-slate-800 text-white"
-          >
-            🖼 Upload Photo
-          </button>
-
-          <button
-            onClick={() => {
-              localStorage.removeItem("chatBackground");
-              setChatBackground("");
-              setShowBackgroundMenu(false);
-            }}
-            className="w-full text-left px-5 py-4 hover:bg-slate-800 text-red-400"
-          >
-            🗑 Remove Background
-          </button>
-
-          <button
-            onClick={() => setShowBackgroundMenu(false)}
-            className="w-full text-left px-5 py-4 hover:bg-slate-800 text-slate-300"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-)}
-     </main>
+    </main>
   );
 }
 
