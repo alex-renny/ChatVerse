@@ -9,6 +9,8 @@ import ProfilePanel from "../chat/ProfilePanel";
 import { IoCheckmark, IoCheckmarkDone } from "react-icons/io5";
 import { BsEmojiSmile } from "react-icons/bs";
 import { FiChevronUp, FiChevronDown } from "react-icons/fi";
+import { useSwipeable } from "react-swipeable";
+import MessageBubble from "../chat/MessageBubble";
 
   import { FiMoreVertical } from "react-icons/fi";
 
@@ -536,70 +538,55 @@ useEffect(() => {
       console.log("ReplyTo:", msg.replyTo);
 
       return (
-        <div
+        <MessageBubble
+          onReply={(message) => {
+            setReplyMessage(message);
+          }}
           key={msg._id}
-          ref={(el) => {
+          msg={msg}
+          isMine={isMine}
+          currentUserId={currentUserId}
+          selectedUser={selectedUser}
+          matched={matchedIndexes[currentMatch] === index}
+          selectedMessages={selectedMessages}
+          selectionMode={selectionMode}
+          toggleMessageSelection={toggleMessageSelection}
+          handleReaction={handleReaction}
+            onContextMenu={(e, msg) => {
+              setReactionMenu({
+                x: e.pageX,
+                y: e.pageY,
+                message: msg,
+              });
+
+              setMenu({
+                x: e.pageX,
+                y: e.pageY + 55,
+                message: msg,
+              });
+            }}
+          scrollToMessage={scrollToMessage}
+          setPreviewImage={setPreviewImage}
+          setReplyMessage={setReplyMessage}
+          messageRef={(el) => {
             if (el) {
               messageRefs.current[msg._id] = el;
             }
           }}
-          onClick={() => {
-            if (selectionMode) {
-              toggleMessageSelection(msg._id);
-            }
-          }}
-          onDoubleClick={() => handleReaction(msg._id, "❤️")}
-          onContextMenu={(e) => {
-            e.preventDefault();
-
-            setReactionMenu({
-              x: e.pageX,
-              y: e.pageY,
-              message: msg,
-            });
-
-            setMenu({
-              x: e.pageX,
-              y: e.pageY + 55,
-              message: msg,
-            });
-          }}
-          className={`flex items-center gap-3 mb-1 ${
-            isMine ? "justify-end" : "justify-start"
-          }`}
-        >
-
-          {/* {selectionMode && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleMessageSelection(msg._id);
-              }}
-              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+          >
+          {selectionMode && (
+            <div
+              className={`mr-3 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
                 selectedMessages.includes(msg._id)
                   ? "bg-cyan-500 border-cyan-500 scale-110"
-                  : "border-slate-500 hover:border-cyan-400"
+                  : "border-slate-500"
               }`}
             >
               {selectedMessages.includes(msg._id) && (
                 <span className="text-white text-xs">✓</span>
               )}
-            </button>
-          )} */}
-
-          {selectionMode && (
-  <div
-    className={`mr-3 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
-      selectedMessages.includes(msg._id)
-        ? "bg-cyan-500 border-cyan-500 scale-110"
-        : "border-slate-500"
-    }`}
-  >
-    {selectedMessages.includes(msg._id) && (
-      <span className="text-white text-xs">✓</span>
-    )}
-  </div>
-)}
+            </div>
+          )}
 
           <div
             className={`relative max-w-md px-4 py-1.5 rounded-2xl text-white transition-all duration-300
@@ -615,8 +602,8 @@ useEffect(() => {
             }`}
           >
             {matchedIndexes[currentMatch] === index && (
-  <div className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-300 via-blue-500 to-cyan-300 animate-pulse" />
-)}
+              <div className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-cyan-300 via-blue-500 to-cyan-300 animate-pulse" />
+            )}
             <div>
               <div>
                 {msg.replyTo && (
@@ -716,7 +703,7 @@ useEffect(() => {
               </div>
             </div>
           </div>
-        </div>
+        </MessageBubble>
       );
     })
   )}
@@ -741,28 +728,25 @@ useEffect(() => {
 
   </div>
     <div className="relative border-t border-slate-800 px-3 py-1.5">
-
               {replyMessage && (
-      <div className="bg-slate-800 border-l-4 border-blue-500 rounded-lg p-3 mb-3 flex items-start">
-        <div>
-          <p className="text-blue-400 text-sm font-semibold">
-            Replying to {replyMessage.sender === currentUserId ? "You" : selectedUser.name}
-          </p>
+                <div className="mb-3 rounded-xl border-l-4 border-blue-500 bg-slate-800 px-4 py-3 relative">
+                  <button
+                    onClick={() => setReplyMessage(null)}
+                    className="absolute top-3 right-3 text-slate-400 hover:text-white text-lg"
+                  >
+                    ✕
+                  </button>
 
-          <p className="text-slate-300 text-sm truncate max-w-md px-4 py-2 rounded-2xl">
-            {replyMessage.text || "📷 Image"}
-          </p>
-        </div>
+                  <p className="text-sm font-semibold text-blue-400 mb-1">
+                    Replying to{" "}
+                    {replyMessage.sender === currentUserId ? "You" : selectedUser.name}
+                  </p>
 
-        <button
-          onClick={() => setReplyMessage(null)}
-          className="text-slate-400 hover:text-white text-lg"
-        >
-          ✕
-        </button>
-      </div>
-    )}
-
+                  <p className="text-slate-300 truncate pr-8">
+                    {replyMessage.text || "📷 Image"}
+                  </p>
+                </div>
+              )}
     {showEmojiPicker && (
       <div className="absolute bottom-20 left-3 z-50">
         <EmojiPicker onEmojiClick={handleEmojiClick} />
