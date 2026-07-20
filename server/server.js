@@ -20,12 +20,26 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const server = createServer(app);
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://chat-verse-blond.vercel.app",
+];
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
+
 export const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
+
 export const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
