@@ -1,6 +1,10 @@
 import User from "../models/User.js";
+import cloudinary from "../config/cloudinary.js";
 
 export const uploadProfilePicture = async (req, res) => {
+    console.log("===== CLOUDINARY UPLOAD =====");
+    console.log(req.file);
+
   try {
     const user = await User.findById(req.user._id);
 
@@ -9,7 +13,35 @@ export const uploadProfilePicture = async (req, res) => {
         message: "User not found",
       });
     }
-    console.log("REQ.FILE:", req.file);
+
+    // Delete previous Cloudinary image
+    if (
+      user.profilePic &&
+      user.profilePic.includes("res.cloudinary.com")
+    ) {
+      try {
+        const parts = user.profilePic.split("/");
+
+        const uploadIndex = parts.findIndex(
+          (part) => part === "upload"
+        );
+        console.log("Old URL:", user.profilePic);
+
+        const publicId = parts
+          .slice(uploadIndex + 2)
+          .join("/")
+          .replace(/\.[^/.]+$/, "");
+
+        console.log("Deleting:", publicId);
+
+        const result = await cloudinary.uploader.destroy(publicId);
+
+        console.log("Cloudinary result:", result);
+      } catch (err) {
+        console.log("Old image not deleted:", err.message);
+      }
+    }
+
     user.profilePic = req.file.path;
 
     await user.save();
@@ -23,6 +55,7 @@ export const uploadProfilePicture = async (req, res) => {
     });
   }
 };
+
 export const updateProfile = async (req, res) => {
     try {
 
