@@ -10,7 +10,7 @@ export const uploadProfilePicture = async (req, res) => {
       });
     }
 
-    user.profilePic = `/uploads/${req.file.filename}`;
+    user.profilePic = req.file.path;
 
     await user.save();
 

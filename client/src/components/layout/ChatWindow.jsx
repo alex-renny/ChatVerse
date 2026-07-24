@@ -482,15 +482,9 @@ useEffect(() => {
                 onClick={() => setShowProfile(true)}
                 className="flex items-center gap-3 cursor-pointer"
                 >
-                <img
-                  src={
-                    selectedUser.profilePic
-                      ? `https://chatverse-server-eoma.onrender.com${selectedUser.profilePic}`
-                      : "/default-avatar.png"
-                  }
-                  alt={selectedUser.name}
-                  className="w-11 h-11 rounded-full object-cover border border-slate-700"
-                />
+                  <img
+                    src={selectedUser.profilePic || "/default-avatar.png"}
+                  />
 
                 <div>
                   <h2 className="text-xl font-semibold text-white">
