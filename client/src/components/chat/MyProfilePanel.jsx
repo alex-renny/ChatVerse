@@ -1,10 +1,12 @@
 import { FiTrash2, FiX } from "react-icons/fi";
 import { useState, useRef } from "react";
+import { useAuth } from "../../context/AuthContext";
 import {uploadProfilePicture,updateProfile,} from "../../services/profileService";
 
 function MyProfilePanel({ user, onClose }) {
 
     const fileInputRef = useRef(null);
+    const { setUser } = useAuth();  
     const [profile, setProfile] = useState(user);
     const [editing, setEditing] = useState(false);
     const [form, setForm] = useState({
@@ -17,6 +19,7 @@ function MyProfilePanel({ user, onClose }) {
                 const updated = await updateProfile(form);
 
                 setProfile(updated);
+                setUser(updated);
 
                 localStorage.setItem(
                 "user",
@@ -39,11 +42,13 @@ function MyProfilePanel({ user, onClose }) {
         const updatedUser = await uploadProfilePicture(file);
 
         setProfile(updatedUser);
+        setUser(updatedUser);
 
         localStorage.setItem(
         "user",
         JSON.stringify(updatedUser)
         );
+        
 
     } catch (err) {
         console.error(err);
@@ -56,6 +61,7 @@ function MyProfilePanel({ user, onClose }) {
             const updatedUser = await updateProfile({ profilePic: "" });
 
             setProfile(updatedUser);
+            setUser(updatedUser);
             localStorage.setItem("user", JSON.stringify(updatedUser));
         } catch (err) {
             console.error(err);
