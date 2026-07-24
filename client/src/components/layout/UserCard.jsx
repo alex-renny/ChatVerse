@@ -15,7 +15,11 @@ function UserCard({ user, onSelect, online, onTogglePin }) {
         <div className="w-12 h-12 rounded-full overflow-hidden bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
           {user.profilePic ? (
             <img
-              src={selectedUser.profilePic}
+              src={
+                user.profilePic.startsWith("http")
+                  ? user.profilePic
+                  : `https://chatverse-server-eoma.onrender.com${user.profilePic}`
+              }
               alt={user.name}
               className="w-full h-full object-cover"
             />

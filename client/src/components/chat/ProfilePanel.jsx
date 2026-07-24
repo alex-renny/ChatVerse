@@ -27,13 +27,13 @@ function ProfilePanel({ user, onClose }) {
             <div className="w-32 h-32 rounded-full overflow-hidden bg-slate-700 flex items-center justify-center text-5xl text-white font-bold">
 
                 {user.profilePic ? (
-                <img
-                    src={selectedUser.profilePic}
+                  <img
+                    src={user.profilePic}
                     alt={user.name}
                     className="w-full h-full object-cover"
-                />
+                  />
                 ) : (
-                user.name.charAt(0).toUpperCase()
+                  user.name.charAt(0).toUpperCase()
                 )}
 
             </div>
