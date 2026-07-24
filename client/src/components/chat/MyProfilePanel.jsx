@@ -92,13 +92,13 @@ function MyProfilePanel({ user, onClose }) {
                 >
                     {profile.profilePic ? (
                     <img
-  src={
-    user.profilePic?.startsWith("http")
-      ? user.profilePic
-      : `https://chatverse-server-eoma.onrender.com${user.profilePic}`
-  }
-  alt={user.name}
-/>
+                        src={
+                            user.profilePic?.startsWith("http")
+                            ? user.profilePic
+                            : `https://chatverse-server-eoma.onrender.com${user.profilePic}`
+                        }
+                        alt={user.name}
+                        />
                     ) : (
                     profile.name?.charAt(0).toUpperCase()
                     )}

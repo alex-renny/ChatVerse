@@ -767,13 +767,13 @@ useEffect(() => {
                         <>
                           {msg.image && (
                             <img
-  src={
-    user.profilePic?.startsWith("http")
-      ? user.profilePic
-      : `https://chatverse-server-eoma.onrender.com${user.profilePic}`
-  }
-  alt={user.name}
-/>
+                              src={
+                                user.profilePic?.startsWith("http")
+                                  ? user.profilePic
+                                  : `https://chatverse-server-eoma.onrender.com${user.profilePic}`
+                              }
+                              alt={user.name}
+                            />
                           )}
 
                           {msg.text && <p>{msg.text}</p>}
