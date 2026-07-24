@@ -5,6 +5,7 @@ import {uploadProfilePicture,updateProfile,} from "../../services/profileService
 
 function MyProfilePanel({ user, onClose }) {
 
+    const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef(null);
     const { setUser } = useAuth();  
     const [profile, setProfile] = useState(user);
@@ -34,27 +35,29 @@ function MyProfilePanel({ user, onClose }) {
             }
             };
     const handleImageChange = async (e) => {
-    const file = e.target.files[0];
+        const file = e.target.files[0];
 
-    if (!file) return;
+        if (!file) return;
 
-    try {
-        const updatedUser = await uploadProfilePicture(file);
+        setUploading(true);
 
-        setProfile(updatedUser);
-        setUser(updatedUser);
+        try {
+            const updatedUser = await uploadProfilePicture(file);
 
-        localStorage.setItem(
-        "user",
-        JSON.stringify(updatedUser)
-        );
-        
+            setProfile(updatedUser);
+            setUser(updatedUser);
 
-    } catch (err) {
-        console.error(err);
-        alert("Upload failed");
-    }
-    };
+            localStorage.setItem(
+            "user",
+            JSON.stringify(updatedUser)
+            );
+        } catch (err) {
+            console.error(err);
+            alert("Upload failed");
+        } finally {
+            setUploading(false);
+        }
+        };
 
     const handleRemoveProfilePicture = async () => {
         try {
@@ -91,44 +94,49 @@ function MyProfilePanel({ user, onClose }) {
 
         {/* Avatar */}
         <div className="flex justify-center mt-8">
-            <div className="relative">
-                <div
-                    onClick={() => fileInputRef.current.click()}
-                    className="w-32 h-32 rounded-full bg-blue-600 flex items-center justify-center text-5xl font-bold text-white cursor-pointer hover:scale-105 transition overflow-hidden"
-                >
-                    {profile.profilePic ? (
-                    <img
-                        src={
-                            user.profilePic?.startsWith("http")
-                            ? user.profilePic
-                            : `https://chatverse-server-eoma.onrender.com${user.profilePic}`
-                        }
-                        alt={user.name}
-                        />
-                    ) : (
-                    profile.name?.charAt(0).toUpperCase()
-                    )}
-                </div>
+        <div className="relative">
+            <div
+            onClick={() => !uploading && fileInputRef.current.click()}
+            className="relative w-32 h-32 rounded-full bg-blue-600 flex items-center justify-center text-5xl font-bold text-white cursor-pointer hover:scale-105 transition overflow-hidden"
+            >
+            {uploading ? (
+                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
+                <div className="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
 
-                {profile.profilePic && (
-                    <button
-                        onClick={handleRemoveProfilePicture}
-                        aria-label="Remove profile picture"
-                        title="Remove profile picture"
-                        className="absolute bottom-0 right-0 rounded-full bg-red-600 p-2 text-white shadow-lg hover:bg-red-700"
-                    >
-                        <FiTrash2 />
-                    </button>
-                )}
+                <p className="text-xs text-white mt-3">
+                    Uploading...
+                </p>
+                </div>
+            ) : profile.profilePic ? (
+                <img
+                src={`${profile.profilePic}?t=${Date.now()}`}
+                alt="Profile"
+                className="w-full h-full object-cover"
+                />
+            ) : (
+                profile.name?.charAt(0).toUpperCase()
+            )}
             </div>
 
-            <input
-                type="file"
-                ref={fileInputRef}
-                hidden
-                accept="image/*"
-                onChange={handleImageChange}
-            />
+            {profile.profilePic && (
+            <button
+                onClick={handleRemoveProfilePicture}
+                aria-label="Remove profile picture"
+                title="Remove profile picture"
+                className="absolute bottom-0 right-0 rounded-full bg-red-600 p-2 text-white shadow-lg hover:bg-red-700"
+            >
+                <FiTrash2 />
+            </button>
+            )}
+        </div>
+
+        <input
+            type="file"
+            ref={fileInputRef}
+            hidden
+            accept="image/*"
+            onChange={handleImageChange}
+        />
         </div>
         <div className="text-center mt-5">
 
