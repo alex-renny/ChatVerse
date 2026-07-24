@@ -9,7 +9,7 @@ export const uploadProfilePicture = async (req, res) => {
         message: "User not found",
       });
     }
-
+    console.log("REQ.FILE:", req.file);
     user.profilePic = req.file.path;
 
     await user.save();

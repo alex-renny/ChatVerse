@@ -767,13 +767,13 @@ useEffect(() => {
                         <>
                           {msg.image && (
                             <img
-                              src={`https://chatverse-server-eoma.onrender.com${msg.image}`}
-                              alt="Shared"
-                              onClick={() =>
-                                setPreviewImage(`https://chatverse-server-eoma.onrender.com${msg.image}`)
-                              }
-                              className="rounded-xl mb-2 max-w-xs cursor-pointer hover:opacity-90 transition"
-                            />
+  src={
+    user.profilePic?.startsWith("http")
+      ? user.profilePic
+      : `https://chatverse-server-eoma.onrender.com${user.profilePic}`
+  }
+  alt={user.name}
+/>
                           )}
 
                           {msg.text && <p>{msg.text}</p>}
