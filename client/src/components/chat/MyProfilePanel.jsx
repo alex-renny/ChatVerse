@@ -1,4 +1,4 @@
-import { FiTrash2, FiX } from "react-icons/fi";
+import { FiTrash2, FiX,FiCamera } from "react-icons/fi";
 import { useState, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import {uploadProfilePicture,updateProfile,} from "../../services/profileService";
@@ -94,16 +94,15 @@ function MyProfilePanel({ user, onClose }) {
 
         {/* Avatar */}
         <div className="flex justify-center mt-8">
-        <div className="relative">
             <div
             onClick={() => !uploading && fileInputRef.current.click()}
-            className="relative w-32 h-32 rounded-full bg-blue-600 flex items-center justify-center text-5xl font-bold text-white cursor-pointer hover:scale-105 transition overflow-hidden"
+            className="group relative w-32 h-32 rounded-full overflow-hidden cursor-pointer"
             >
             {uploading ? (
-                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
+                <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-20">
                 <div className="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
 
-                <p className="text-xs text-white mt-3">
+                <p className="text-white text-xs mt-3">
                     Uploading...
                 </p>
                 </div>
@@ -114,21 +113,16 @@ function MyProfilePanel({ user, onClose }) {
                 className="w-full h-full object-cover"
                 />
             ) : (
-                profile.name?.charAt(0).toUpperCase()
+                <div className="w-full h-full bg-blue-600 flex items-center justify-center text-5xl font-bold text-white">
+                {profile.name.charAt(0).toUpperCase()}
+                </div>
             )}
-            </div>
 
-            {profile.profilePic && (
-            <button
-                onClick={handleRemoveProfilePicture}
-                aria-label="Remove profile picture"
-                title="Remove profile picture"
-                className="absolute bottom-0 right-0 rounded-full bg-red-600 p-2 text-white shadow-lg hover:bg-red-700"
-            >
-                <FiTrash2 />
-            </button>
-            )}
-        </div>
+            {/* Hover Overlay */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-300 flex items-center justify-center">
+                <FiCamera className="text-white text-3xl opacity-0 group-hover:opacity-100 transition-all duration-300" />
+            </div>
+            </div>
 
         <input
             type="file"
