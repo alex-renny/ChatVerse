@@ -28,53 +28,78 @@ const messageSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    image: {
-      type: String,
-      default: "",
-    },
+
     attachment: {
       url: String,
       name: String,
       mimeType: String,
       size: Number,
+      cloudinaryPublicId: String,
+      resourceType: String,
     },
     replyTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Message",
     },
     reactions: [
-  {
-    user: {
+    {
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      emoji: String,
+    },
+  ],
+
+    deletedFor: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    deletedForEveryone: {
+      type: Boolean,
+      default: false,
+    },
+
+    deletedAt: Date,
+    pinned: {
+      type: Boolean,
+      default: false,
+    },
+
+    pinnedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
-    emoji: String,
-  },
-],
 
-deletedFor: [
-  {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-  },
-],
+    pinnedAt: Date,
 
-deletedForEveryone: {
-  type: Boolean,
-  default: false,
-},
-deletedAt: Date,
-pinned: {
-  type: Boolean,
-  default: false,
-},
+    image: {
+        type: String,
+        default: "",
+    },
 
-pinnedBy: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "User",
-},
+    imagePublicId: {
+      type: String,
+      default: "",
+    },
 
-pinnedAt: Date,
+    imageResourceType: {
+      type: String,
+      default: "image",
+    },
+
+    file: {
+        type: String,
+        default: "",
+    },
+
+    fileName: {
+        type: String,
+        default: "",
+    },
   },
   {
     timestamps: true,

@@ -1,19 +1,42 @@
 import Message from "../models/Message.js";
 import { io, onlineUsers } from "../server.js";
+import cloudinary from "../config/cloudinary.js";
+
+const deleteCloudinaryAsset = async (message) => {
+  const publicId = message.imagePublicId || message.attachment?.cloudinaryPublicId;
+
+  if (!publicId) return;
+
+  const resourceType = message.image
+    ? message.imageResourceType || "image"
+    : message.attachment?.resourceType ||
+      (message.attachment?.mimeType?.startsWith("video/") ? "video" : "raw");
+
+  try {
+    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+  } catch (error) {
+    // The message should still be removed for both people if Cloudinary has
+    // already removed the asset or is temporarily unavailable.
+    console.error("Failed to delete Cloudinary asset:", error);
+  }
+};
 
 // Send a message
 export const sendMessage = async (req, res) => {
   try {
     const { receiver, text, replyTo } = req.body;
 
-    const uploadUrl = req.file ? `/uploads/${req.file.filename}` : "";
-    const image = req.file?.mimetype.startsWith("image/") ? uploadUrl : "";
+    const uploadUrl = req.file ? req.file.path : "";
+    const isImage = req.file?.mimetype?.startsWith("image/");
+    const image = isImage ? uploadUrl : "";
     const attachment = req.file && !image
       ? {
           url: uploadUrl,
           name: req.file.originalname,
           mimeType: req.file.mimetype,
           size: req.file.size,
+          cloudinaryPublicId: req.file.filename,
+          resourceType: req.file.mimetype?.startsWith("video/") ? "video" : "raw",
         }
       : undefined;
 
@@ -22,6 +45,8 @@ export const sendMessage = async (req, res) => {
   receiver,
   text,
   image,
+  imagePublicId: isImage ? req.file.filename : "",
+  imageResourceType: isImage ? "image" : "",
 };
 
 if (attachment) {
@@ -154,6 +179,8 @@ export const deleteMessage = async (req, res) => {
         });
       }
 
+      await deleteCloudinaryAsset(message);
+
       message.deletedForEveryone = true;
         message.deletedAt = new Date();
 
@@ -197,6 +224,7 @@ export const deleteMessage = async (req, res) => {
       message.deletedFor.includes(message.sender.toString()) &&
       message.deletedFor.includes(message.receiver.toString())
     ) {
+      await deleteCloudinaryAsset(message);
       await message.deleteOne();
     } else {
       await message.save();

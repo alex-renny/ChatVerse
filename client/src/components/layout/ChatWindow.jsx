@@ -4,7 +4,7 @@ import socket from "../../services/socket";
 import { useAuth } from "../../context/AuthContext";
 import MessageMenu from "../chat/MessageMenu";
 import EmojiPicker from "emoji-picker-react";
-import {FiPaperclip,FiImage,FiMic,FiSend,} from "react-icons/fi";
+import {FiPaperclip,FiImage,FiMic,FiSend,FiX,} from "react-icons/fi";
 import ProfilePanel from "../chat/ProfilePanel";
 import { IoCheckmark, IoCheckmarkDone } from "react-icons/io5";
 import { BsEmojiSmile } from "react-icons/bs";
@@ -27,6 +27,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const imageInputRef = useRef(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState("");
   const [previewImage, setPreviewImage] = useState(null);
   const [typing, setTyping] = useState(false);
   const [replyMessage, setReplyMessage] = useState(null);
@@ -43,6 +44,27 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [selectedMessages, setSelectedMessages] = useState([]);
   const [pinnedMessage, setPinnedMessage] = useState(null);
   const [showBackgroundSubMenu, setShowBackgroundSubMenu] = useState(false);
+
+  useEffect(() => {
+    if (!selectedImage) {
+      setSelectedImageUrl("");
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(selectedImage);
+    setSelectedImageUrl(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [selectedImage]);
+
+  const clearSelectedAttachment = () => {
+    setSelectedImage(null);
+    setSelectedFile(null);
+    setPreviewImage(null);
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
 
   const reactionWidth = 280; // Approximate width of emoji bar
   const reactionHeight = 60;
@@ -165,8 +187,7 @@ const handleReaction = async (messageId, emoji) => {
 
     setMessages((prev) => [...prev, newMessage]);
     setText("");
-    setSelectedImage(null);
-    setSelectedFile(null);
+    clearSelectedAttachment();
     setReplyMessage(null);
 
   } catch (error) {
@@ -483,7 +504,13 @@ useEffect(() => {
                 className="flex items-center gap-3 cursor-pointer"
                 >
                   <img
-                    src={selectedUser.profilePic || "/default-avatar.png"}
+                    src={
+                      selectedUser.profilePic
+                        ? `${selectedUser.profilePic}?t=${selectedUser.updatedAt || Date.now()}`
+                        : "/default-avatar.png"
+                    }
+                    alt={selectedUser.name}
+                    className="w-12 h-12 rounded-full object-cover"
                   />
 
                 <div>
@@ -767,12 +794,10 @@ useEffect(() => {
                         <>
                           {msg.image && (
                             <img
-                              src={
-                                user.profilePic?.startsWith("http")
-                                  ? user.profilePic
-                                  : `https://chatverse-server-eoma.onrender.com${user.profilePic}`
-                              }
-                              alt={user.name}
+                              src={msg.image}
+                              alt="Message"
+                              className="mt-2 rounded-xl max-w-xs cursor-pointer"
+                              onClick={() => setPreviewImage(msg.image)}
                             />
                           )}
 
@@ -780,8 +805,10 @@ useEffect(() => {
 
                           {msg.attachment && (
                             <a
-                              href={`https://chatverse-server-eoma.onrender.com${msg.attachment.url}`}
+                              href={msg.attachment.url}
                               download={msg.attachment.name}
+                              target="_blank"
+                              rel="noreferrer"
                               className="mt-2 flex items-center gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm text-blue-200 hover:bg-black/30"
                             >
                               <FiPaperclip />
@@ -891,6 +918,45 @@ useEffect(() => {
             </div>
           )}
 
+          {(selectedImage || selectedFile) && (
+            <div className="mb-2 flex items-center gap-3 rounded-xl bg-slate-800 p-2">
+              {selectedImage ? (
+                <button
+                  type="button"
+                  onClick={() => setPreviewImage(selectedImageUrl)}
+                  className="h-16 w-16 overflow-hidden rounded-lg"
+                  aria-label="Preview selected image"
+                >
+                  <img
+                    src={selectedImageUrl}
+                    alt={`Selected ${selectedImage.name}`}
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+              ) : (
+                <FiPaperclip className="ml-2 text-xl text-blue-300" />
+              )}
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-white">
+                  {(selectedImage || selectedFile).name}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {Math.ceil((selectedImage || selectedFile).size / 1024)} KB
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={clearSelectedAttachment}
+                className="rounded-full p-2 text-slate-300 hover:bg-slate-700 hover:text-white"
+                aria-label="Remove selected attachment"
+              >
+                <FiX />
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
 
             {/* Emoji */}
@@ -923,8 +989,8 @@ useEffect(() => {
               hidden
               onChange={(e) => {
                 if (e.target.files.length > 0) {
-                  setSelectedFile(e.target.files[0]);
                   setSelectedImage(null);
+                  setSelectedFile(e.target.files[0]);
                 }
               }}
             />
@@ -936,8 +1002,8 @@ useEffect(() => {
               hidden
               onChange={(e) => {
                 if (e.target.files.length > 0) {
-                  setSelectedImage(e.target.files[0]);
                   setSelectedFile(null);
+                  setSelectedImage(e.target.files[0]);
                 }
               }}
             />
@@ -1140,7 +1206,7 @@ useEffect(() => {
           <img
             src={previewImage}
             alt="Preview"
-            className="max-w-[90%] max-h-[90%] rounded-xl shadow-2xl"
+            className="max-w-[90%] max-h-[90%] object-contain rounded-xl shadow-2xl"
           />
         </div>
         )}

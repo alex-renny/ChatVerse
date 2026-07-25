@@ -94,6 +94,8 @@ function MyProfilePanel({ user, onClose }) {
 
         {/* Avatar */}
         <div className="flex justify-center mt-8">
+        <div className="relative">
+
             <div
             onClick={() => !uploading && fileInputRef.current.click()}
             className="group relative w-32 h-32 rounded-full overflow-hidden cursor-pointer"
@@ -118,11 +120,27 @@ function MyProfilePanel({ user, onClose }) {
                 </div>
             )}
 
-            {/* Hover Overlay */}
+            {/* Camera Hover */}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-300 flex items-center justify-center">
                 <FiCamera className="text-white text-3xl opacity-0 group-hover:opacity-100 transition-all duration-300" />
             </div>
             </div>
+
+            {/* Delete Button */}
+            {profile.profilePic && (
+            <button
+                onClick={(e) => {
+                e.stopPropagation();
+                handleRemoveProfilePicture();
+                }}
+                className="absolute bottom-1 right-1 z-30 w-9 h-9 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center shadow-lg"
+                title="Remove profile picture"
+            >
+                <FiTrash2 className="text-white" />
+            </button>
+            )}
+
+        </div>
 
         <input
             type="file"

@@ -35,7 +35,7 @@ export const uploadProfilePicture = async (req, res) => {
     if (user.profilePic) await deleteProfilePicture(user);
 
     user.profilePic = req.file.path;
-    user.profilePicPublicId = req.file.filename;
+    user.profilePicPublicId = req.file.path;
 
     await user.save();
 
