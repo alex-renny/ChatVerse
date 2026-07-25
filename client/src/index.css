@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
-
+/* Global scrollbar settings to prevent Windows scrollbars from overlapping content */
+html {
+  overflow-y: scroll;
+}
 .typing-dot {
   width: 5px;
   height: 5px;

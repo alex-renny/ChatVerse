@@ -1,13 +1,13 @@
 import { useAuth } from "../../context/AuthContext";
 import UserCard from "./UserCard";
-import { useEffect, useState,useRef } from "react";
-import {getConversationUsers,getUsers,togglePinnedChat} from "../../services/userService";
+import { useEffect, useState, useRef } from "react";
+import { getConversationUsers, getUsers, togglePinnedChat } from "../../services/userService";
 import socket from "../../services/socket";
-import { FiMoreVertical } from "react-icons/fi";
+import { FiMoreVertical, FiSearch, FiX, FiUser, FiSettings, FiLogOut } from "react-icons/fi";
 import ProfileMenu from "../chat/ProfileMenu";
 import MyProfilePanel from "../chat/MyProfilePanel";
 
-function Sidebar({ selectedUser,setSelectedUser, }) {
+function Sidebar({ selectedUser, setSelectedUser }) {
   const [users, setUsers] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [search, setSearch] = useState("");
@@ -20,38 +20,38 @@ function Sidebar({ selectedUser,setSelectedUser, }) {
   const menuRef = useRef(null);
 
   const handleLogout = () => {
-  socket.disconnect();
-  logout();
-};
-
-useEffect(() => {
-  function handleClickOutside(event) {
-    if (menuRef.current && !menuRef.current.contains(event.target)) {
-      setShowMenu(false);
-    }
-  }
-
-  document.addEventListener("mousedown", handleClickOutside);
-
-  return () => {
-    document.removeEventListener("mousedown", handleClickOutside);
+    socket.disconnect();
+    logout();
   };
-}, []);
 
   useEffect(() => {
-  const loadUsers = async () => {
-    try {
-      const data = await getConversationUsers();
-      setUsers(data);
-      const everyone = await getUsers();
-      setAllUsers(everyone);
-    } catch (error) {
-      console.error(error);
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
     }
-  };
 
-  loadUsers();
-}, []);
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const data = await getConversationUsers();
+        setUsers(data);
+        const everyone = await getUsers();
+        setAllUsers(everyone);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    loadUsers();
+  }, []);
 
   useEffect(() => {
     socket.on("onlineUsers", (users) => {
@@ -65,15 +65,15 @@ useEffect(() => {
   }, []);
 
   const filteredUsers =
-  search.trim() === ""
-    ? users
-    : allUsers.filter((u) => {
-        const matches =
-          u.name.toLowerCase().includes(search.toLowerCase()) ||
-          u.email.toLowerCase().includes(search.toLowerCase());
+    search.trim() === ""
+      ? users
+      : allUsers.filter((u) => {
+          const matches =
+            u.name.toLowerCase().includes(search.toLowerCase()) ||
+            u.email.toLowerCase().includes(search.toLowerCase());
 
-        return matches;
-      });
+          return matches;
+        });
 
   const handleTogglePin = async (chatUser) => {
     try {
@@ -93,28 +93,25 @@ useEffect(() => {
   };
 
   return (
-    <aside className="w-full md:w-80 h-screen bg-slate-900 border-r border-slate-800 flex flex-col">
-
-      {/* Header */}
-      <div className="relative p-5 border-b border-slate-800">
-
+    <aside className="w-full md:w-80 h-screen bg-white flex flex-col shadow-sm relative z-20">
+      
+      {/* ================= HEADER ================= */}
+      <div className="p-5 border-b border-gray-100 bg-white">
         <div className="flex justify-between items-center">
-
+          
           <div>
-            <h1 className="text-2xl font-bold text-white">
-               ReSender
+            <h1 className="text-2xl font-bold text-[#FF7A00] tracking-tight">
+              ReSender
             </h1>
-
-            <p className="text-slate-400 text-sm">
-              Welcome {user?.name}
+            <p className="text-gray-500 text-xs font-medium mt-0.5">
+              Welcome back, {user?.name}
             </p>
           </div>
 
           <div className="relative" ref={menuRef}>
-
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="text-white text-2xl"
+              className="text-[#2C2C2C] hover:text-[#FF7A00] transition-colors p-2 hover:bg-gray-50 rounded-full text-2xl"
             >
               <FiMoreVertical />
             </button>
@@ -140,61 +137,75 @@ useEffect(() => {
                 onLogout={handleLogout}
               />
             )}
-
           </div>
 
         </div>
-
       </div>
 
-      {/* Search */}
-
-      {showSearch && (
-        <div className="p-4 flex items-center gap-2">
-
-          <input
-            type="text"
-            placeholder="Search name or email..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 p-3 rounded-xl bg-slate-800 text-white outline-none"
-            autoFocus
-          />
-
+      {/* ================= SEARCH BAR ================= */}
+      {showSearch ? (
+        <div className="p-4 bg-[#f8f9fa] border-b border-gray-200 flex items-center gap-3">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
+            <input
+              type="text"
+              placeholder="Search name or email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white text-[#2C2C2C] border border-gray-200 outline-none focus:border-[#FF7A00] focus:ring-2 focus:ring-[#FF7A00]/20 placeholder:text-gray-400 transition-all"
+              autoFocus
+            />
+          </div>
           <button
             onClick={() => {
               setShowSearch(false);
               setSearch("");
             }}
-            className="text-red-400 text-xl"
+            className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
           >
-            ✕
+            <FiX className="text-xl" />
           </button>
-
+        </div>
+      ) : (
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+          <button 
+            onClick={() => setShowSearch(true)}
+            className="flex-1 flex items-center gap-3 p-2.5 rounded-xl bg-[#f8f9fa] text-gray-500 hover:bg-gray-200 transition-colors text-sm"
+          >
+            <FiSearch className="text-lg" />
+            <span>Search contacts...</span>
+          </button>
         </div>
       )}
 
-      {/* Contact List */}
-
-      <div className="flex-1 overflow-y-auto">
-        {filteredUsers.map((u) => (
-          <UserCard
-            key={u._id}
-            user={u}
-            onSelect={setSelectedUser}
-            online={onlineUsers.includes(u._id)}
-            onTogglePin={handleTogglePin}
-          />
-        ))}
+      {/* ================= CONTACT LIST ================= */}
+      <div className="flex-1 overflow-y-auto bg-white scrollbar-thin scrollbar-thumb-gray-200">
+        {filteredUsers.length > 0 ? (
+          filteredUsers.map((u) => (
+            <UserCard
+              key={u._id}
+              user={u}
+              onSelect={setSelectedUser}
+              online={onlineUsers.includes(u._id)}
+              onTogglePin={handleTogglePin}
+            />
+          ))
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8 text-center">
+            <div className="text-4xl mb-3">💬</div>
+            <p className="font-medium text-[#2C2C2C]">No users found</p>
+            <p className="text-sm text-gray-400 mt-1">Try a different search term</p>
+          </div>
+        )}
       </div>
 
+      {/* ================= PROFILE PANEL ================= */}
       {showMyProfile && (
-  <MyProfilePanel
-    user={user}
-    onClose={() => setShowMyProfile(false)}
-  />
-)}
-
+        <MyProfilePanel
+          user={user}
+          onClose={() => setShowMyProfile(false)}
+        />
+      )}
     </aside>
   );
 }
