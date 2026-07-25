@@ -8,7 +8,7 @@ import {FiPaperclip,FiImage,FiMic,FiSend,FiX,} from "react-icons/fi";
 import ProfilePanel from "../chat/ProfilePanel";
 import { IoCheckmark, IoCheckmarkDone } from "react-icons/io5";
 import { BsEmojiSmile } from "react-icons/bs";
-import { FiChevronUp, FiChevronDown } from "react-icons/fi";
+import { FiChevronUp, FiChevronDown,FiArrowLeft } from "react-icons/fi";
 import { useSwipeable } from "react-swipeable";
 import MessageBubble from "../chat/MessageBubble";
 import chatBackgrounds from "../../data/chatBackgrounds";
@@ -517,26 +517,33 @@ useEffect(() => {
         ) : (
           <>
             <div className="flex items-center gap-3">
-              <div
-                onClick={() => setShowProfile(true)}
-                className="flex items-center gap-3 cursor-pointer"
-                >
-                  <img
-                    src={
-                      selectedUser.profilePic
-                        ? `${selectedUser.profilePic}?t=${selectedUser.updatedAt || Date.now()}`
-                        : "/default-avatar.png"
-                    }
-                    alt={selectedUser.name}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
 
-                <div>
-                  <h2 className="text-xl font-semibold text-white">
-                    {selectedUser.name}
-                  </h2>
-                </div>
+              {/* Back Button */}
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="p-2 rounded-full hover:bg-slate-700 transition"
+              >
+                <FiArrowLeft className="text-white text-2xl" />
+              </button>
+
+              {/* Profile Picture */}
+              <img
+                src={
+                  selectedUser.profilePic
+                    ? `${selectedUser.profilePic}?t=${selectedUser.updatedAt || Date.now()}`
+                    : "/default-avatar.png"
+                }
+                alt={selectedUser.name}
+                className="w-12 h-12 rounded-full object-cover"
+              />
+
+              <div>
+                <h2 className="text-white font-semibold">
+                  {selectedUser.name}
+                </h2>
+                {/* status */}
               </div>
+
             </div>
 
             <div className="relative">
