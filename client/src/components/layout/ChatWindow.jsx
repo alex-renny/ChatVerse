@@ -11,6 +11,7 @@ import { BsEmojiSmile } from "react-icons/bs";
 import { FiChevronUp, FiChevronDown } from "react-icons/fi";
 import { useSwipeable } from "react-swipeable";
 import MessageBubble from "../chat/MessageBubble";
+import chatBackgrounds from "../../data/chatBackgrounds";
 
   import { FiMoreVertical } from "react-icons/fi";
 
@@ -87,11 +88,8 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const handleEmojiClick = (emojiData) => {
   setText((prev) => prev + emojiData.emoji);
   };
-  const [chatBackground, setChatBackground] = useState(
-    localStorage.getItem("chatBackground") || ""
-  );
+  const [chatBackground,setChatBackground]=useState("");
 
-  const bgInputRef = useRef(null);
   const backgroundTimer = useRef(null);
 
   const scrollToMessage = (id) => {
@@ -214,6 +212,18 @@ const goToPreviousMatch = () => {
       block: "center",
     });
   };
+
+useEffect(() => {
+  if (!selectedUser) return;
+
+  const saved =
+    localStorage.getItem(
+      `chatBackground_${selectedUser._id}`
+    ) || "";
+
+  setChatBackground(saved);
+
+}, [selectedUser]);
 
 useEffect(() => {
   const handleClickOutside = () => {
@@ -561,8 +571,26 @@ useEffect(() => {
 
 
                   {/* Change Background */}
-                  <div
-                      className="relative"
+                <div
+                  className="relative"
+                  onMouseEnter={() => {
+                    clearTimeout(backgroundTimer.current);
+                    setShowBackgroundSubMenu(true);
+                  }}
+                  onMouseLeave={() => {
+                    backgroundTimer.current = setTimeout(() => {
+                      setShowBackgroundSubMenu(false);
+                    }, 500);
+                  }}
+                >
+
+                  <button className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white">
+                    🖼 Change Background
+                  </button>
+
+                  {showBackgroundSubMenu && (
+                    <div
+                      className="absolute top-0 right-full mr-2 w-64 bg-slate-800 rounded-xl border border-slate-700 shadow-xl p-3"
                       onMouseEnter={() => {
                         clearTimeout(backgroundTimer.current);
                         setShowBackgroundSubMenu(true);
@@ -574,55 +602,49 @@ useEffect(() => {
                       }}
                     >
 
-                    <button
-                      className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white flex items-center"
-                    >
-                      <span>🖼 Change BG</span>
-                      {/* <span className="ml-auto">▶</span> */}
-                    </button>
+                      <div className="max-h-80 overflow-y-auto p-3">
+                        <div className="grid grid-cols-2 gap-3">
+                        {chatBackgrounds.map((bg) => (
+                          <img
+                            key={bg}
+                            src={bg}
+                            onClick={() => {
+                                setChatBackground(bg);
 
+                                localStorage.setItem(
+                                    `chatBackground_${selectedUser._id}`,
+                                    bg
+                                );
 
-                    {showBackgroundSubMenu && (
-                      <div
-                        className="absolute top-0 right-full mr-2 w-56 bg-slate-800 rounded-xl border border-slate-700 shadow-xl"
-                        onMouseEnter={() => {
-                          clearTimeout(backgroundTimer.current);
-                          setShowBackgroundSubMenu(true);
-                        }}
-                        onMouseLeave={() => {
-                          backgroundTimer.current = setTimeout(() => {
-                            setShowBackgroundSubMenu(false);
-                          }, 500);
-                        }}
-                      >
-                        <button
-                          onClick={() => {
-                            bgInputRef.current.click();
-                            setShowChatMenu(false);
-                            setShowBackgroundSubMenu(false);
-                          }}
-                          className="w-full text-left px-4 py-3 hover:bg-slate-700 text-white"
-                        >
-                          📷 Upload Photo
-                        </button>
-
-
-                        <button
-                          onClick={() => {
-                            localStorage.removeItem("chatBackground");
-                            setChatBackground("");
-                            setShowChatMenu(false);
-                            setShowBackgroundSubMenu(false);
-                          }}
-                          className="w-full text-left px-4 py-3 hover:bg-red-700 text-red-300"
-                        >
-                          🗑 Remove Background
-                        </button>
-
+                                setShowChatMenu(false);
+                                setShowBackgroundSubMenu(false);
+                            }}
+                            className="w-full h-24 object-cover rounded-lg cursor-pointer hover:scale-105 transition"
+                        />
+                        ))}
+                        </div>
                       </div>
-                    )}
 
-                  </div>
+                      <button
+                        onClick={() => {
+                          localStorage.removeItem(
+                            `chatBackground_${selectedUser._id}`
+                          );
+
+                          setChatBackground("");
+
+                          setShowBackgroundSubMenu(false);
+                          setShowChatMenu(false);
+                        }}
+                        className="w-full mt-3 text-left px-4 py-3 hover:bg-red-700 rounded-lg text-red-300"
+                      >
+                        🗑 Remove Background
+                      </button>
+
+                    </div>
+                  )}
+
+                </div>
 
                 </div>
               )}
@@ -1001,33 +1023,6 @@ useEffect(() => {
               }}
             />
 
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={(e) => {
-                if (e.target.files.length > 0) {
-                  setSelectedFile(null);
-                  setSelectedImage(e.target.files[0]);
-                }
-              }}
-            />
-            <input
-              type="file"
-              hidden
-              accept="image/*"
-              ref={bgInputRef}
-              onChange={(e) => {
-                if (!e.target.files[0]) return;
-
-                const url = URL.createObjectURL(e.target.files[0]);
-
-                setChatBackground(url);
-
-                localStorage.setItem("chatBackground", url);
-              }}
-            />
             {/* Message Box */}
 
             <input
