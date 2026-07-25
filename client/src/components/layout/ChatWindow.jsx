@@ -398,11 +398,19 @@ socket.on("messageUpdated", (updatedMessage) => {
 
 });
 
+const handleMessageDeleted = ({ messageId }) => {
+  setMessages((prev) => prev.filter((message) => message._id !== messageId));
+  setPinnedMessage((prev) => (prev?._id === messageId ? null : prev));
+};
+
+socket.on("messageDeleted", handleMessageDeleted);
+
   return () => {
     socket.off("typing", handleTyping);
     socket.off("stopTyping", handleStopTyping);
     socket.off("messageReaction");
     socket.off("messageUpdated");
+    socket.off("messageDeleted", handleMessageDeleted);
 
   };
 }, [selectedUser]);
@@ -699,9 +707,7 @@ useEffect(() => {
             ) : (
               messages.map((msg, index) => {
                 const isMine = msg.sender === currentUserId;
-        //      
-            console.log("ReplyTo:", msg.replyTo);
-          
+
             return (
               <MessageBubble
                 onReply={(message) => {
@@ -1148,6 +1154,13 @@ useEffect(() => {
                 onDeleteForEveryone={async () => {
                   try {
                     await deleteMessage(menu.message._id, true);
+
+                    setMessages((prev) =>
+                      prev.filter((msg) => msg._id !== menu.message._id)
+                    );
+                    setPinnedMessage((prev) =>
+                      prev?._id === menu.message._id ? null : prev
+                    );
                     setMenu(null);
                   } catch (err) {
                     console.error(err);

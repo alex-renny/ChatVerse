@@ -2,18 +2,46 @@ import Message from "../models/Message.js";
 import { io, onlineUsers } from "../server.js";
 import cloudinary from "../config/cloudinary.js";
 
+const getCloudinaryAsset = (message) => {
+  const storedPublicId = message.imagePublicId || message.attachment?.cloudinaryPublicId;
+
+  if (storedPublicId) {
+    return {
+      publicId: storedPublicId,
+      resourceType: message.image
+        ? message.imageResourceType || "image"
+        : message.attachment?.resourceType ||
+          (message.attachment?.mimeType?.startsWith("video/") ? "video" : "raw"),
+    };
+  }
+
+  // Messages created before Cloudinary IDs were saved can still be cleaned up
+  // when their URL is a standard Cloudinary delivery URL.
+  const url = message.image || message.attachment?.url;
+  const match = url?.match(/\/(image|video|raw)\/upload\/(?:v\d+\/)?(.+?)(?:\?.*)?$/);
+
+  if (!match) return null;
+
+  const [, resourceType, path] = match;
+  const publicId = resourceType === "raw" ? path : path.replace(/\.[^.\/]+$/, "");
+
+  return { publicId, resourceType };
+};
+
 const deleteCloudinaryAsset = async (message) => {
-  const publicId = message.imagePublicId || message.attachment?.cloudinaryPublicId;
+  const asset = getCloudinaryAsset(message);
 
-  if (!publicId) return;
-
-  const resourceType = message.image
-    ? message.imageResourceType || "image"
-    : message.attachment?.resourceType ||
-      (message.attachment?.mimeType?.startsWith("video/") ? "video" : "raw");
+  if (!asset) return;
 
   try {
-    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+    const result = await cloudinary.uploader.destroy(asset.publicId, {
+      resource_type: asset.resourceType,
+      invalidate: true,
+    });
+
+    if (result.result !== "ok" && result.result !== "not found") {
+      console.warn("Cloudinary did not confirm asset deletion:", result);
+    }
   } catch (error) {
     // The message should still be removed for both people if Cloudinary has
     // already removed the asset or is temporarily unavailable.
@@ -112,6 +140,10 @@ export const getMessages = async (req, res) => {
       deletedFor: {
         $ne: req.user._id,
       },
+
+      deletedForEveryone: {
+        $ne: true,
+      },
     })
     .populate("replyTo")
     .sort({ createdAt: 1 });
@@ -181,21 +213,19 @@ export const deleteMessage = async (req, res) => {
 
       await deleteCloudinaryAsset(message);
 
-      message.deletedForEveryone = true;
-        message.deletedAt = new Date();
+      await message.deleteOne();
 
-        await message.save();
+      const deletedMessage = { messageId: message._id.toString() };
+      const senderSocket = onlineUsers.get(message.sender.toString());
+      const receiverSocket = onlineUsers.get(message.receiver.toString());
 
-        const senderSocket = onlineUsers.get(message.sender.toString());
-        const receiverSocket = onlineUsers.get(message.receiver.toString());
+      if (senderSocket) {
+        io.to(senderSocket).emit("messageDeleted", deletedMessage);
+      }
 
-        if (senderSocket) {
-          io.to(senderSocket).emit("messageUpdated", message);
-        }
-
-        if (receiverSocket) {
-          io.to(receiverSocket).emit("messageUpdated", message);
-        }
+      if (receiverSocket) {
+        io.to(receiverSocket).emit("messageDeleted", deletedMessage);
+      }
 
         return res.json({
           message: "Deleted for everyone",
@@ -226,6 +256,13 @@ export const deleteMessage = async (req, res) => {
     ) {
       await deleteCloudinaryAsset(message);
       await message.deleteOne();
+
+      const deletedMessage = { messageId: message._id.toString() };
+      const senderSocket = onlineUsers.get(message.sender.toString());
+      const receiverSocket = onlineUsers.get(message.receiver.toString());
+
+      if (senderSocket) io.to(senderSocket).emit("messageDeleted", deletedMessage);
+      if (receiverSocket) io.to(receiverSocket).emit("messageDeleted", deletedMessage);
     } else {
       await message.save();
     }

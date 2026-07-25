@@ -38,16 +38,23 @@ export const sendMessage = async (receiver, text, attachment, replyTo) => {
 };
 
 export const deleteMessage = async (messageId, deleteForEveryone = false) => {
-  const { data } = await axios.delete(`${API}/${messageId}`, {
-    headers: {
-      Authorization: `Bearer ${getToken()}`,
-    },
-    data: {
-      deleteForEveryone,
-    },
-  });
+  try {
+    const { data } = await axios.delete(`${API}/${messageId}`, {
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+      data: {
+        deleteForEveryone,
+      },
+    });
 
-  return data;
+    return data;
+  } catch (error) {
+    // Another tab or the real-time event may have already removed it.
+    if (error.response?.status === 404) return { alreadyDeleted: true };
+
+    throw error;
+  }
 };  
 
 export const markAsSeen = async (senderId) => {
