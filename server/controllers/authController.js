@@ -36,13 +36,13 @@ export const registerUser = async (req, res) => {
     res.status(201).json({
       message: "User registered successfully",
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        profilePic: user.profilePic,
-        bio: user.bio,
-        lastSeen: user.lastSeen,
-      },
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      profilePic: user.profilePic,
+      bio: user.bio,
+      lastSeen: user.lastSeen,
+    },
     });
 
   } catch (error) {
@@ -84,13 +84,13 @@ export const loginUser = async (req, res) => {
       message: "Login successful",
       token,
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        profilePic: user.profilePic,
-        bio: user.bio,
-        lastSeen: user.lastSeen,
-      },
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      profilePic: user.profilePic,
+      bio: user.bio,
+      lastSeen: user.lastSeen,
+    },
     });
 
   } catch (error) {
