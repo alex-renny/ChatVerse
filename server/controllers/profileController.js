@@ -1,10 +1,28 @@
 import User from "../models/User.js";
 import cloudinary from "../config/cloudinary.js";
 
-export const uploadProfilePicture = async (req, res) => {
-    console.log("===== CLOUDINARY UPLOAD =====");
-    console.log(req.file);
+const getPublicIdFromUrl = (url) => {
+  try {
+    const pathParts = new URL(url).pathname.split("/");
+    const versionIndex = pathParts.findIndex((part) => /^v\d+$/.test(part));
 
+    return versionIndex === -1
+      ? ""
+      : pathParts.slice(versionIndex + 1).join("/").replace(/\.[^/.]+$/, "");
+  } catch {
+    return "";
+  }
+};
+
+const deleteProfilePicture = async (user) => {
+  const publicId = user.profilePicPublicId || getPublicIdFromUrl(user.profilePic);
+
+  if (publicId) {
+    await cloudinary.uploader.destroy(publicId, { invalidate: true });
+  }
+};
+
+export const uploadProfilePicture = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
 
@@ -14,35 +32,10 @@ export const uploadProfilePicture = async (req, res) => {
       });
     }
 
-    // Delete previous Cloudinary image
-    if (
-      user.profilePic &&
-      user.profilePic.includes("res.cloudinary.com")
-    ) {
-      try {
-        const parts = user.profilePic.split("/");
-
-        const uploadIndex = parts.findIndex(
-          (part) => part === "upload"
-        );
-        console.log("Old URL:", user.profilePic);
-
-        const publicId = parts
-          .slice(uploadIndex + 2)
-          .join("/")
-          .replace(/\.[^/.]+$/, "");
-
-        console.log("Deleting:", publicId);
-
-        const result = await cloudinary.uploader.destroy(publicId);
-
-        console.log("Cloudinary result:", result);
-      } catch (err) {
-        console.log("Old image not deleted:", err.message);
-      }
-    }
+    if (user.profilePic) await deleteProfilePicture(user);
 
     user.profilePic = req.file.path;
+    user.profilePicPublicId = req.file.filename;
 
     await user.save();
 
@@ -77,6 +70,11 @@ export const updateProfile = async (req, res) => {
 
         if (status !== undefined)
             user.status = status;
+
+        if (profilePic === "" && user.profilePic) {
+            await deleteProfilePicture(user);
+            user.profilePicPublicId = "";
+        }
 
         if (profilePic !== undefined)
             user.profilePic = profilePic;

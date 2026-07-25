@@ -27,6 +27,11 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    profilePicPublicId: {
+      type: String,
+      default: "",
+    },
+
     bio: {
       type: String,
       default: "Hey there! I'm using ReSender 💬",
