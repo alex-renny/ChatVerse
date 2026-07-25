@@ -11,6 +11,7 @@ function Sidebar({ selectedUser,setSelectedUser, }) {
   const [users, setUsers] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [search, setSearch] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const { user, logout } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
@@ -120,6 +121,10 @@ useEffect(() => {
 
             {showMenu && (
               <ProfileMenu
+                onSearch={() => {
+                  setShowMenu(false);
+                  setShowSearch(true);
+                }}
                 onProfile={() => {
                   setShowMenu(false);
                   setShowMyProfile(true);
@@ -144,17 +149,30 @@ useEffect(() => {
 
       {/* Search */}
 
-      <div className="p-4">
+      {showSearch && (
+        <div className="p-4 flex items-center gap-2">
 
-        <input
-          type="text"
-          placeholder="Search name or email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full p-3 rounded-xl bg-slate-800 text-white outline-none"
-        />
+          <input
+            type="text"
+            placeholder="Search name or email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 p-3 rounded-xl bg-slate-800 text-white outline-none"
+            autoFocus
+          />
 
-      </div>
+          <button
+            onClick={() => {
+              setShowSearch(false);
+              setSearch("");
+            }}
+            className="text-red-400 text-xl"
+          >
+            ✕
+          </button>
+
+        </div>
+      )}
 
       {/* Contact List */}
 
