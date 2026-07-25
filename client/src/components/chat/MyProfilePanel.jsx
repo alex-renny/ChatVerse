@@ -22,11 +22,6 @@ function MyProfilePanel({ user, onClose }) {
                 setProfile(updated);
                 setUser(updated);
 
-                localStorage.setItem(
-                "user",
-                JSON.stringify(updated)
-                );
-
                 setEditing(false);
 
             } catch (err) {
@@ -47,10 +42,6 @@ function MyProfilePanel({ user, onClose }) {
             setProfile(updatedUser);
             setUser(updatedUser);
 
-            localStorage.setItem(
-            "user",
-            JSON.stringify(updatedUser)
-            );
         } catch (err) {
             console.error(err);
             alert("Upload failed");
@@ -65,7 +56,6 @@ function MyProfilePanel({ user, onClose }) {
 
             setProfile(updatedUser);
             setUser(updatedUser);
-            localStorage.setItem("user", JSON.stringify(updatedUser));
         } catch (err) {
             console.error(err);
             alert("Failed to remove profile picture");

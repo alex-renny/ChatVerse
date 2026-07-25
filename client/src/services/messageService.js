@@ -1,8 +1,9 @@
 import axios from "axios";
+import { getSessionToken } from "./session";
 
 const API = "https://chatverse-server-eoma.onrender.com/api/messages";
 
-const getToken = () => localStorage.getItem("token");
+const getToken = () => getSessionToken();
 
 export const getMessages = async (receiverId) => {
   const { data } = await axios.get(`${API}/${receiverId}`, {
@@ -72,7 +73,7 @@ export const markAsSeen = async (senderId) => {
 };
 
 export const reactToMessage = async (messageId, emoji) => {
-  const token = localStorage.getItem("token");
+  const token = getSessionToken();
 
   const res = await fetch(
     `https://chatverse-server-eoma.onrender.com/api/messages/react/${messageId}`,
