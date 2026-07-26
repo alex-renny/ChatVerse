@@ -1,28 +1,53 @@
-import { BrowserRouter, Navigate, Routes, Route ,useLocation} from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
+
+import { useEffect, useState } from "react";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Chat from "./pages/Chat";
-import { useAuth } from "./context/AuthContext";
-import { useState } from "react";
 import IntroScreen from "./components/IntroScreen";
+import { useAuth } from "./context/AuthContext";
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
 
   return user ? children : <Navigate to="/" replace />;
 }
+
 function AppRoutes() {
   const { user } = useAuth();
   const location = useLocation();
-  const [showIntro, setShowIntro] = useState(
-    location.pathname === "/" || location.pathname === "/register"
-  );
 
-  if (showIntro && (location.pathname === "/" || location.pathname === "/register")) {
+  const isAuthPage =
+    location.pathname === "/" ||
+    location.pathname === "/register";
+
+  const [showIntro, setShowIntro] = useState(false);
+
+  useEffect(() => {
+    if (
+      isAuthPage &&
+      sessionStorage.getItem("introPlayed") !== "true"
+    ) {
+      setShowIntro(true);
+    } else {
+      setShowIntro(false);
+    }
+  }, [location.pathname]);
+
+  if (showIntro) {
     return (
       <IntroScreen
-        onFinish={() => setShowIntro(false)}
+        onFinish={() => {
+          sessionStorage.setItem("introPlayed", "true");
+          setShowIntro(false);
+        }}
       />
     );
   }
@@ -30,7 +55,11 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+
+      <Route
+        path="/register"
+        element={<Register />}
+      />
 
       <Route
         path="/chat"
@@ -51,6 +80,5 @@ function App() {
     </BrowserRouter>
   );
 }
-
 
 export default App;

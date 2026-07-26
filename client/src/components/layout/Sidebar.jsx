@@ -20,9 +20,12 @@ function Sidebar({ selectedUser, setSelectedUser }) {
   const menuRef = useRef(null);
 
   const handleLogout = () => {
-    socket.disconnect();
-    logout();
-  };
+  socket.disconnect();
+
+  sessionStorage.removeItem("introPlayed");
+
+  logout();
+};
 
   useEffect(() => {
     function handleClickOutside(event) {
