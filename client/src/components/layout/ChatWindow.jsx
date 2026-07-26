@@ -11,6 +11,7 @@ import { BsEmojiSmile } from "react-icons/bs";
 import { useSwipeable } from "react-swipeable";
 import MessageBubble from "../chat/MessageBubble";
 import chatBackgrounds from "../../data/chatBackgrounds";
+import {getChatBackground,saveChatBackground,} from "../../services/userService";
 
 function ChatWindow({ selectedUser, setSelectedUser }) {
   const typingTimeout = useRef(null);
@@ -68,10 +69,19 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   }, [selectedImage]);
 
   useEffect(() => {
-    if (!selectedUser) return;
-    const saved = localStorage.getItem(`chatBackground_${selectedUser._id}`) || "";
-    setChatBackground(saved);
-  }, [selectedUser]);
+  if (!selectedUser) return;
+
+  const loadBackground = async () => {
+    try {
+      const data = await getChatBackground(selectedUser._id);
+      setChatBackground(data.background || "");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  loadBackground();
+}, [selectedUser]);
 
   useEffect(() => {
     const handleClickOutside = () => {
@@ -415,11 +425,15 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
                                   key={bg} 
                                   src={bg} 
                                   alt="bg" 
-                                  onClick={() => { 
-                                    setChatBackground(bg); 
-                                    localStorage.setItem(`chatBackground_${selectedUser._id}`, bg); 
-                                    setShowChatMenu(false); 
-                                    setShowBackgroundSubMenu(false); 
+                                  onClick={async () => {
+                                    setChatBackground(bg);
+                                    try {
+                                      await saveChatBackground(selectedUser._id, bg);
+                                    } catch (err) {
+                                      console.error(err);
+                                    }
+                                    setShowChatMenu(false);
+                                    setShowBackgroundSubMenu(false);
                                   }}
                                   className="w-full h-20 object-cover rounded-lg cursor-pointer hover:scale-105 transition border border-gray-100" 
                                 />
@@ -427,11 +441,15 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
                             </div>
                           </div>
                           <button 
-                            onClick={() => { 
-                              localStorage.removeItem(`chatBackground_${selectedUser._id}`); 
-                              setChatBackground(""); 
-                              setShowBackgroundSubMenu(false); 
-                              setShowChatMenu(false); 
+                            onClick={async () => {
+                              setChatBackground("");
+                              try {
+                                await saveChatBackground(selectedUser._id, "");
+                              } catch (err) {
+                                console.error(err);
+                              }
+                              setShowBackgroundSubMenu(false);
+                              setShowChatMenu(false);
                             }}
                             className="w-full mt-2 text-left px-4 py-2 hover:bg-red-50 rounded-lg text-red-500 text-sm font-medium transition"
                           >

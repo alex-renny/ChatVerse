@@ -95,3 +95,50 @@ export const togglePinnedChat = async (req, res) => {
     res.status(500).json({ message: "Unable to update pinned chat" });
   }
 };
+
+export const saveChatBackground = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { background } = req.body;
+
+    const user = await User.findById(req.user._id);
+
+    user.chatBackgrounds.set(userId, background);
+
+    await user.save();
+
+    res.json({
+      success: true,
+      background,
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Unable to save background",
+    });
+  }
+};
+
+export const getChatBackground = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(req.user._id);
+
+    const background =
+      user.chatBackgrounds.get(userId) || "";
+
+    res.json({
+      background,
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Unable to load background",
+    });
+  }
+};

@@ -58,6 +58,11 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    chatBackgrounds: {
+      type: Map,
+      of: String,
+      default: {},
+    },
 
   },
   {
