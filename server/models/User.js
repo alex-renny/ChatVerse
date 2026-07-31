@@ -63,6 +63,22 @@ const userSchema = new mongoose.Schema(
       of: String,
       default: {},
     },
+    chatPasswordEnabled: {
+      type: Boolean,
+      default: false,
+    },
+
+    chatPassword: {
+      type: String,
+      default: "",
+    },
+
+    verifiedUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
 
   },
   {

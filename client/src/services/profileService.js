@@ -25,3 +25,31 @@ export const updateProfile = async (profileData) => {
 
   return data;
 };
+
+export const setChatPassword = async (password) => {
+  const response = await API.put("/profile/chat-password", {
+    password,
+  });
+
+  return response.data;
+};
+
+export const removeChatPassword = async () => {
+  const response = await API.delete("/profile/chat-password");
+
+  return response.data;
+};
+
+export const getChatPasswordStatus = async () => {
+  const response = await API.get("/profile/chat-password");
+
+  return response.data;
+};
+
+export const removeVerifiedUserAccess = async (userId) => {
+  const response = await API.delete(
+    `/profile/chat-password/access/${userId}`
+  );
+
+  return response.data;
+};

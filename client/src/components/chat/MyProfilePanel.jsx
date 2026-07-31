@@ -2,9 +2,11 @@ import { FiTrash2, FiX, FiCamera, FiEdit2 } from "react-icons/fi";
 import { useState, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { uploadProfilePicture, updateProfile } from "../../services/profileService";
+import ChatPasswordSettingsModal from "./ChatPasswordSettingsModal";
 
 function MyProfilePanel({ user, onClose }) {
   const [uploading, setUploading] = useState(false);
+  const [showPasswordSettings, setShowPasswordSettings] = useState(false);
   const fileInputRef = useRef(null);
   const { setUser } = useAuth();
   const [profile, setProfile] = useState(user);
@@ -217,8 +219,36 @@ function MyProfilePanel({ user, onClose }) {
           </div>
         </div>
 
+        {/* ================= CHAT PASSWORD ================= */}
+
+            <div className="px-6 pb-8">
+
+            <h4 className="text-[#FF7A00] font-semibold text-xs uppercase tracking-wider mb-2">
+                Chat Password
+            </h4>
+
+            <div className="bg-[#f8f9fa] rounded-xl p-4 border border-gray-100">
+
+                <button
+                onClick={() => setShowPasswordSettings(true)}
+                className="w-full bg-[#FF7A00] hover:bg-[#E66E00] text-white py-3 rounded-xl font-semibold transition"
+                >
+                Manage Chat Password
+                </button>
+
+            </div>
+
+            </div>
+
+            {showPasswordSettings && (
+                <ChatPasswordSettingsModal
+                    onClose={() => setShowPasswordSettings(false)}
+                />
+                )}
+
       </div>
     </div>
+    
   );
 }
 

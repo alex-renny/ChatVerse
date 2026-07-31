@@ -1,6 +1,15 @@
 import Message from "../models/Message.js";
+import User from "../models/User.js";
 import { io, onlineUsers } from "../server.js";
 import cloudinary from "../config/cloudinary.js";
+
+const canAccessChat = (owner, requesterId) => {
+  if (!owner.chatPasswordEnabled) return true;
+
+  return owner.verifiedUsers.some(
+    (id) => id.toString() === requesterId.toString()
+  );
+};
 
 const getCloudinaryAsset = (message) => {
   const storedPublicId = message.imagePublicId || message.attachment?.cloudinaryPublicId;
@@ -53,6 +62,20 @@ const deleteCloudinaryAsset = async (message) => {
 export const sendMessage = async (req, res) => {
   try {
     const { receiver, text, replyTo } = req.body;
+
+    const receiverUser = await User.findById(receiver);
+
+    if (!receiverUser) {
+      return res.status(404).json({
+        message: "Receiver not found",
+      });
+    }
+
+    if (!canAccessChat(receiverUser, req.user._id)) {
+      return res.status(403).json({
+        message: "Chat password required",
+      });
+    }
 
     const uploadUrl = req.file ? req.file.path : "";
     const isImage = req.file?.mimetype?.startsWith("image/");
@@ -124,6 +147,20 @@ res.status(201).json(message);
 export const getMessages = async (req, res) => {
   try {
     const { receiverId } = req.params;
+
+    const chatPartner = await User.findById(receiverId);
+
+    if (!chatPartner) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    if (!canAccessChat(chatPartner, req.user._id)) {
+      return res.status(403).json({
+        message: "Chat password required",
+      });
+    }
 
     const messages = await Message.find({
       $or: [

@@ -33,3 +33,47 @@ export const getChatBackground = async (userId) => {
 
   return response.data;
 };
+
+// Set Chat Password
+export const setChatPassword = async (password) => {
+  const response = await API.put(
+    "/users/chat-password",
+    { password }
+  );
+
+  return response.data;
+};
+
+// Remove Chat Password
+export const removeChatPassword = async () => {
+  const response = await API.delete(
+    "/users/chat-password"
+  );
+
+  return response.data;
+};
+
+// Check if chat access is allowed (password enabled + verified status)
+export const checkChatAccess = async (userId) => {
+  const response = await API.get(
+    `/users/${userId}/chat-password-enabled`
+  );
+
+  return response.data;
+};
+
+// Verify Chat Password
+export const verifyChatPassword = async (
+  userId,
+  password
+) => {
+  const response = await API.post(
+    "/users/verify-chat-password",
+    {
+      userId,
+      password,
+    }
+  );
+
+  return response.data;
+};
