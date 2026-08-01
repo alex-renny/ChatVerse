@@ -11,7 +11,8 @@ import { BsEmojiSmile } from "react-icons/bs";
 import { useSwipeable } from "react-swipeable";
 import MessageBubble from "../chat/MessageBubble";
 import chatBackgrounds from "../../data/chatBackgrounds";
-import {getChatBackground,saveChatBackground,} from "../../services/userService";
+import {getChatBackground, saveChatBackground, checkChatAccess, verifyChatPassword} from "../../services/userService";
+import ChatPasswordPromptModal from "../chat/ChatPasswordPromptModal";
 
 function ChatWindow({ selectedUser, setSelectedUser }) {
   const typingTimeout = useRef(null);
@@ -45,6 +46,9 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [showBackgroundSubMenu, setShowBackgroundSubMenu] = useState(false);
   const [chatBackground, setChatBackground] = useState("");
   const backgroundTimer = useRef(null);
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [chatAccess, setChatAccess] = useState({ enabled: false, verified: true });
+  const pendingSendRef = useRef(null);
 
   const reactionWidth = 280;
   const reactionHeight = 60;
@@ -82,6 +86,21 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
 
   loadBackground();
 }, [selectedUser]);
+
+  useEffect(() => {
+    if (!selectedUser) return;
+
+    const loadChatAccess = async () => {
+      try {
+        const data = await checkChatAccess(selectedUser._id);
+        setChatAccess(data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    loadChatAccess();
+  }, [selectedUser]);
 
   useEffect(() => {
     const handleClickOutside = () => {
@@ -311,15 +330,64 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
 
   const handleSend = async () => {
     if (!text.trim() && !selectedImage && !selectedFile) return;
+
+    const payload = {
+      text,
+      image: selectedImage,
+      file: selectedFile,
+      replyId: replyMessage?._id,
+    };
+
+    if (chatAccess.enabled && !chatAccess.verified) {
+      pendingSendRef.current = payload;
+      setShowPasswordPrompt(true);
+      return;
+    }
+
     try {
-      const newMessage = await sendMessage(selectedUser._id, text, selectedImage || selectedFile, replyMessage?._id);
+      const newMessage = await sendMessage(
+        selectedUser._id,
+        payload.text,
+        payload.image || payload.file,
+        payload.replyId
+      );
       setMessages((prev) => [...prev, newMessage]);
       setText("");
       clearSelectedAttachment();
       setReplyMessage(null);
+      setChatAccess((prev) => ({ ...prev, verified: true }));
     } catch (error) {
+      if (error.response?.status === 403) {
+        pendingSendRef.current = payload;
+        setChatAccess({ enabled: true, verified: false });
+        setShowPasswordPrompt(true);
+        return;
+      }
+
       console.error(error);
     }
+  };
+
+  const handlePasswordVerified = async (password) => {
+    await verifyChatPassword(selectedUser._id, password);
+    setChatAccess({ enabled: true, verified: true });
+    setShowPasswordPrompt(false);
+
+    const payload = pendingSendRef.current;
+    pendingSendRef.current = null;
+
+    if (!payload) return;
+
+    const newMessage = await sendMessage(
+      selectedUser._id,
+      payload.text,
+      payload.image || payload.file,
+      payload.replyId
+    );
+    setMessages((prev) => [...prev, newMessage]);
+    setText("");
+    clearSelectedAttachment();
+    setReplyMessage(null);
   };
 
   // === EMPTY STATE ===
@@ -717,6 +785,17 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
         )}
 
         {showProfile && <ProfilePanel user={selectedUser} onClose={() => setShowProfile(false)} />}
+
+        {showPasswordPrompt && (
+          <ChatPasswordPromptModal
+            user={selectedUser}
+            onClose={() => {
+              setShowPasswordPrompt(false);
+              pendingSendRef.current = null;
+            }}
+            onSubmit={handlePasswordVerified}
+          />
+        )}
       </div>
     </main>
   );

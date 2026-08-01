@@ -156,12 +156,6 @@ export const getMessages = async (req, res) => {
       });
     }
 
-    if (!canAccessChat(chatPartner, req.user._id)) {
-      return res.status(403).json({
-        message: "Chat password required",
-      });
-    }
-
     const messages = await Message.find({
       $or: [
         {
