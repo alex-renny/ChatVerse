@@ -1,11 +1,12 @@
 import { useAuth } from "../../context/AuthContext";
 import UserCard from "./UserCard";
 import { useEffect, useState, useRef } from "react";
-import { getConversationUsers, getUsers, togglePinnedChat } from "../../services/userService";
+import { getConversationUsers, getUsers, togglePinnedChat, checkChatAccess, verifyChatPassword } from "../../services/userService";
 import socket from "../../services/socket";
 import { FiMoreVertical, FiSearch, FiX } from "react-icons/fi";
 import ProfileMenu from "../chat/ProfileMenu";
 import MyProfilePanel from "../chat/MyProfilePanel";
+import ChatPasswordPromptModal from "../chat/ChatPasswordPromptModal";
 
 function Sidebar({ selectedUser, setSelectedUser }) {
   const [users, setUsers] = useState([]);
@@ -17,6 +18,8 @@ function Sidebar({ selectedUser, setSelectedUser }) {
   const [showMenu, setShowMenu] = useState(false);
   const [showMyProfile, setShowMyProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [passwordUser, setPasswordUser] = useState(null);
+  const [pendingUser, setPendingUser] = useState(null);
   const menuRef = useRef(null);
 
   const handleLogout = () => {
@@ -95,8 +98,20 @@ function Sidebar({ selectedUser, setSelectedUser }) {
     }
   };
 
-  const handleSelectUser = (chatUser) => {
-    setSelectedUser(chatUser);
+  const handleSelectUser = async (chatUser) => {
+    try {
+      const result = await checkChatAccess(chatUser._id);
+
+      if (result.enabled && !result.verified) {
+        setPendingUser(chatUser);
+        setPasswordUser(chatUser);
+        return;
+      }
+
+      setSelectedUser(chatUser);
+    } catch (err) {
+      console.error(err);
+    }
   };
   return (
     <aside className="w-full md:w-80 h-screen bg-white flex flex-col shadow-sm relative z-20">
@@ -210,6 +225,21 @@ function Sidebar({ selectedUser, setSelectedUser }) {
         <MyProfilePanel
           user={user}
           onClose={() => setShowMyProfile(false)}
+        />
+      )}
+      {passwordUser && (
+        <ChatPasswordPromptModal
+          user={passwordUser}
+          onClose={() => {
+            setPasswordUser(null);
+            setPendingUser(null);
+          }}
+          onSubmit={async (password) => {
+            await verifyChatPassword(pendingUser._id, password);
+            setSelectedUser(pendingUser);
+            setPasswordUser(null);
+            setPendingUser(null);
+          }}
         />
       )}
     </aside>

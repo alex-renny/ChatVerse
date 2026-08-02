@@ -51,7 +51,7 @@ function ChatPasswordPromptModal({ user, onClose, onSubmit }) {
         </div>
 
         <p className="text-gray-600 text-sm mb-4">
-          Enter the chat password to send your first message.
+          Enter the chat password to start a conversation.
         </p>
 
         <form onSubmit={handleSubmit}>
