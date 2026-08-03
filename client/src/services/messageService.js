@@ -5,10 +5,14 @@ const API = "https://chatverse-server-eoma.onrender.com/api/messages";
 
 const getToken = () => getSessionToken();
 
-export const getMessages = async (receiverId) => {
+export const getMessages = async (receiverId, limit = 30, skip = 0) => {
   const { data } = await axios.get(`${API}/${receiverId}`, {
     headers: {
       Authorization: `Bearer ${getToken()}`,
+    },
+    params: {
+      limit,
+      skip,
     },
   });
 

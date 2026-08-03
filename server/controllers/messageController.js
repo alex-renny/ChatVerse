@@ -162,7 +162,10 @@ export const getMessages = async (req, res) => {
       });
     }
 
-    const messages = await Message.find({
+    const limit = Math.max(Number(req.query.limit) || 30, 1);
+    const skip = Math.max(Number(req.query.skip) || 0, 0);
+
+    const query = {
       $or: [
         {
           sender: req.user._id,
@@ -181,11 +184,23 @@ export const getMessages = async (req, res) => {
       deletedForEveryone: {
         $ne: true,
       },
-    })
-    .populate("replyTo")
-    .sort({ createdAt: 1 });
+    };
 
-    res.json(messages);
+    const messages = await Message.find(query)
+      .populate("replyTo")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const pinnedMessage = await Message.findOne({
+      ...query,
+      pinned: true,
+    }).populate("replyTo");
+
+    res.json({
+      messages,
+      pinnedMessage,
+    });
 
   } catch (error) {
     console.error(error);

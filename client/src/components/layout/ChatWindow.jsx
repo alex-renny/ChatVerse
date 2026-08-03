@@ -20,6 +20,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const { user } = useAuth();
   const currentUserId = user?._id || user?.id;
   const bottomRef = useRef(null);
+  const messageContainerRef = useRef(null);
   const [menu, setMenu] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRef = useRef(null);
@@ -35,6 +36,10 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [matchedIndexes, setMatchedIndexes] = useState([]);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [currentMatch, setCurrentMatch] = useState(0);
   const [showChatMenu, setShowChatMenu] = useState(false);
   const messageRefs = useRef([]);
@@ -130,23 +135,35 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, typing]);
+    if (!loadingMoreMessages) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, typing, loadingMoreMessages]);
 
   useEffect(() => {
     if (!selectedUser) return;
+
     const loadMessages = async () => {
+      setLoadingMessages(true);
+      setHasMoreMessages(true);
       try {
-        const data = await getMessages(selectedUser._id);
-        setMessages(data);
-        const pinned = data.find((m) => m.pinned);
-        setPinnedMessage(pinned || null);
+        const data = await getMessages(selectedUser._id, 30, 0);
+        const reversed = data.messages.slice().reverse();
+        setMessages(reversed);
+        setPinnedMessage(data.pinnedMessage || reversed.find((m) => m.pinned) || null);
+        setHasMoreMessages(data.messages.length === 30);
         await markAsSeen(selectedUser._id);
         socket.emit("messagesSeen", { senderId: selectedUser._id, receiverId: currentUserId });
+        setTimeout(() => {
+          bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 50);
       } catch (error) {
         console.error(error);
+      } finally {
+        setLoadingMessages(false);
       }
     };
+
     loadMessages();
   }, [selectedUser]);
 
@@ -309,16 +326,88 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
     }
   };
 
-  const handleSend = async () => {
-    if (!text.trim() && !selectedImage && !selectedFile) return;
+  const handleScroll = () => {
+    const container = messageContainerRef.current;
+    if (!container || loadingMoreMessages || !hasMoreMessages) return;
+
+    if (container.scrollTop <= 120) {
+      loadMoreMessages();
+    }
+  };
+
+  const loadMoreMessages = async () => {
+    if (!selectedUser || loadingMoreMessages || !hasMoreMessages) return;
+    const container = messageContainerRef.current;
+    if (!container) return;
+
+    setLoadingMoreMessages(true);
+    const previousScrollHeight = container.scrollHeight;
+
     try {
-      const newMessage = await sendMessage(selectedUser._id, text, selectedImage || selectedFile, replyMessage?._id);
-      setMessages((prev) => [...prev, newMessage]);
-      setText("");
-      clearSelectedAttachment();
-      setReplyMessage(null);
+      const data = await getMessages(selectedUser._id, 30, messages.length);
+      if (!data || data.messages.length === 0) {
+        setHasMoreMessages(false);
+        return;
+      }
+
+      const olderMessages = data.messages.slice().reverse();
+      setMessages((prev) => [...olderMessages, ...prev]);
+      setHasMoreMessages(data.messages.length === 30);
+
+      setTimeout(() => {
+        if (container) {
+          container.scrollTop = container.scrollHeight - previousScrollHeight;
+        }
+      }, 50);
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoadingMoreMessages(false);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!text.trim() && !selectedImage && !selectedFile) return;
+
+    const replyToId = replyMessage?._id;
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage = {
+      _id: tempId,
+      sender: currentUserId,
+      receiver: selectedUser._id,
+      text,
+      image: selectedImage ? URL.createObjectURL(selectedImage) : undefined,
+      attachment: selectedFile
+        ? {
+            url: "",
+            name: selectedFile.name,
+            size: selectedFile.size,
+          }
+        : undefined,
+      createdAt: new Date().toISOString(),
+      delivered: false,
+      seen: false,
+      replyTo: replyMessage || null,
+      pending: true,
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setText("");
+    const savedSelectedImage = selectedImage;
+    const savedSelectedFile = selectedFile;
+    clearSelectedAttachment();
+    setReplyMessage(null);
+    setIsSending(true);
+
+    try {
+      const serverMessage = await sendMessage(selectedUser._id, optimisticMessage.text, savedSelectedImage || savedSelectedFile, replyToId);
+      setMessages((prev) => prev.map((msg) => (msg._id === tempId ? serverMessage : msg)));
+    } catch (error) {
+      console.error(error);
+      setMessages((prev) => prev.filter((msg) => msg._id !== tempId));
+      alert("Message failed to send. Please try again.");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -493,8 +582,10 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
 
         {/* ================= MESSAGES AREA ================= */}
         {/* 3. Changed this background to 'bg-transparent' so the main wrapper's background image shows through */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 bg-transparent">
-          {messages.length === 0 ? (
+        <div ref={messageContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 bg-transparent">
+          {loadingMessages ? (
+            <div className="flex h-full items-center justify-center text-gray-500">Loading messages...</div>
+          ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-gray-400">
               <span className="text-6xl mb-4">👋</span>
               <p className="text-[#2C2C2C] font-medium">No messages yet</p>
@@ -677,7 +768,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
 
             <button className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1 flex-shrink-0"><FiMic /></button>
 
-            <button onClick={handleSend} className="bg-[#FF7A00] hover:bg-[#E66E00] rounded-full p-3 text-white shadow-md shadow-orange-200 hover:shadow-orange-300 transform active:scale-95 transition flex-shrink-0">
+            <button onClick={handleSend} disabled={isSending} className="bg-[#FF7A00] hover:bg-[#E66E00] rounded-full p-3 text-white shadow-md shadow-orange-200 hover:shadow-orange-300 transform active:scale-95 transition flex-shrink-0 disabled:opacity-60 disabled:pointer-events-none">
               <FiSend />
             </button>
           </div>
