@@ -27,8 +27,12 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const imageInputRef = useRef(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedAudioUrl, setSelectedAudioUrl] = useState("");
   const [selectedImageUrl, setSelectedImageUrl] = useState("");
   const [previewImage, setPreviewImage] = useState(null);
+  const [recording, setRecording] = useState(false);
+  const [audioChunks, setAudioChunks] = useState([]);
+  const mediaRecorderRef = useRef(null);
   const [typing, setTyping] = useState(false);
   const [replyMessage, setReplyMessage] = useState(null);
   const [reactionMenu, setReactionMenu] = useState(null);
@@ -72,6 +76,15 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
     setSelectedImageUrl(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
   }, [selectedImage]);
+
+  useEffect(() => {
+    if (!selectedAudioUrl) {
+      return;
+    }
+    return () => {
+      URL.revokeObjectURL(selectedAudioUrl);
+    };
+  }, [selectedAudioUrl]);
 
   useEffect(() => {
   if (!selectedUser) return;
@@ -250,9 +263,46 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const clearSelectedAttachment = () => {
     setSelectedImage(null);
     setSelectedFile(null);
+    setSelectedAudioUrl("");
     setPreviewImage(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  const startRecording = async () => {
+    if (recording) {
+      mediaRecorderRef.current?.stop();
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mediaRecorderRef.current = recorder;
+      setRecording(true);
+      setAudioChunks([]);
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          setAudioChunks((prev) => [...prev, event.data]);
+        }
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(audioChunks, { type: "audio/webm" });
+        const file = new File([blob], `voice-${Date.now()}.webm`, { type: blob.type });
+        setSelectedFile(file);
+        setSelectedAudioUrl(URL.createObjectURL(file));
+        setRecording(false);
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      recorder.start();
+    } catch (error) {
+      console.error("Failed to start voice recording:", error);
+      setRecording(false);
+      alert("Could not access microphone. Please allow microphone access and try again.");
+    }
   };
 
   const handleEmojiClick = (emojiData) => {
@@ -657,12 +707,16 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
                                  onClick={() => setPreviewImage(msg.image)} />
                           )}
                           {msg.text && <p className="leading-relaxed">{msg.text}</p>}
-                          {msg.attachment && (
+                          {msg.attachment && msg.attachment.mimeType?.startsWith("audio/") ? (
+                            <div className="mt-2 rounded-xl border border-gray-200 bg-white p-3">
+                              <audio controls src={msg.attachment.url} className="w-full" />
+                            </div>
+                          ) : msg.attachment ? (
                             <a href={msg.attachment.url} download={msg.attachment.name} target="_blank" rel="noreferrer"
                                className={`mt-2 flex items-center gap-2 rounded-lg ${isMine ? 'bg-white/20 text-white' : 'bg-gray-100 text-[#2C2C2C]'} px-3 py-2 text-sm hover:bg-opacity-30 transition`}>
                               <FiPaperclip /> <span className="truncate">{msg.attachment.name}</span>
                             </a>
-                          )}
+                          ) : null}
                         </>
                       )}
 
@@ -736,12 +790,16 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
                 <button type="button" onClick={() => setPreviewImage(selectedImageUrl)} className="h-14 w-14 overflow-hidden rounded-lg border border-gray-200">
                   <img src={selectedImageUrl} alt="Selected" className="h-full w-full object-cover" />
                 </button>
+              ) : selectedFile?.type?.startsWith("audio/") ? (
+                <div className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 bg-white">
+                  <audio controls src={selectedAudioUrl} className="max-w-[150px]" />
+                </div>
               ) : (
                 <FiPaperclip className="ml-2 text-xl text-[#FF7A00]" />
               )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-[#2C2C2C]">{(selectedImage || selectedFile).name}</p>
-                <p className="text-xs text-gray-400">{Math.ceil((selectedImage || selectedFile).size / 1024)} KB</p>
+                <p className="truncate text-sm font-medium text-[#2C2C2C]">{(selectedImage || selectedFile)?.name}</p>
+                <p className="text-xs text-gray-400">{Math.ceil(((selectedImage || selectedFile)?.size || 0) / 1024)} KB</p>
               </div>
               <button type="button" onClick={clearSelectedAttachment} className="rounded-full p-2 text-gray-400 hover:bg-gray-200 hover:text-red-500 transition">
                 <FiX />
@@ -766,7 +824,9 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
                    placeholder="Type a message..." className="min-w-0 flex-1 bg-[#f8f9fa] text-[#2C2C2C] rounded-full px-5 py-3 outline-none border border-transparent focus:border-[#FF7A00] focus:bg-white transition"
                    onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }} />
 
-            <button className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1 flex-shrink-0"><FiMic /></button>
+            <button onClick={startRecording} className={`text-gray-400 transition text-2xl p-1 flex-shrink-0 ${recording ? "text-red-500" : "hover:text-[#FF7A00]"}`}>
+              <FiMic />
+            </button>
 
             <button onClick={handleSend} disabled={isSending} className="bg-[#FF7A00] hover:bg-[#E66E00] rounded-full p-3 text-white shadow-md shadow-orange-200 hover:shadow-orange-300 transform active:scale-95 transition flex-shrink-0 disabled:opacity-60 disabled:pointer-events-none">
               <FiSend />
