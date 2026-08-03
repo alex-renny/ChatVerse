@@ -7,7 +7,7 @@ function Chat() {
   const [selectedUser, setSelectedUser] = useState(null);
 
   return (
-    <div className="flex h-screen bg-[#f8f9fa] overflow-hidden font-sans">
+    <div className="flex flex-col md:flex-row h-screen min-h-0 bg-[#f8f9fa] overflow-hidden overflow-x-hidden font-sans">
       
       {/* ================= SIDEBAR ================= */}
       <div 
@@ -33,7 +33,7 @@ function Chat() {
       <div 
         className={`
           ${selectedUser ? "flex" : "hidden md:flex"} 
-          flex-1 
+          flex-1 min-w-0 
           h-full 
           bg-white 
           relative

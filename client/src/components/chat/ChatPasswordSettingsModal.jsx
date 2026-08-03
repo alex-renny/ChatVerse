@@ -92,7 +92,7 @@ function ChatPasswordSettingsModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[999]">
-      <div className="bg-white rounded-2xl p-6 w-[440px] max-h-[85vh] overflow-y-auto shadow-xl">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto shadow-xl">
         <div className="flex justify-between items-center mb-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">

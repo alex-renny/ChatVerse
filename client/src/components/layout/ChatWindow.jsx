@@ -342,23 +342,23 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
     return (
     // 1. Added 'bg-cover' and 'bg-center' to ensure the background image fills the container
     <main 
-      className="flex-1 flex justify-center bg-[#f8f9fa] relative bg-cover bg-center" 
+      className="flex-1 flex min-h-0 justify-center bg-[#f8f9fa] relative bg-cover bg-center" 
       style={{ backgroundImage: chatBackground ? `url(${chatBackground})` : 'none' }}
     >
       
       {/* 2. Inner container is now 'bg-white' with 'bg-opacity-90' so the background image bleeds through slightly on the edges */}
-      <div className="w-full max-w-5xl flex flex-col bg-transparent shadow-sm relative">
+      <div className="w-full max-w-full flex flex-col bg-transparent shadow-sm relative min-h-0">
 
         {/* ================= HEADER ================= */}
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white z-10">
+        <div className="p-4 border-b border-gray-200 flex flex-nowrap items-center justify-between gap-3 bg-white z-10 min-w-0">
           {selectionMode ? (
             <>
-              <div className="flex items-center gap-4">
-                <button onClick={() => { setSelectionMode(false); setSelectedMessages([]); }} className="text-2xl text-[#2C2C2C] hover:text-red-500 transition">
+              <div className="flex items-center gap-4 min-w-0 flex-1">
+                <button onClick={() => { setSelectionMode(false); setSelectedMessages([]); }} className="text-2xl text-[#2C2C2C] hover:text-red-500 transition flex-shrink-0">
                   <FiX />
                 </button>
-                <div>
-                  <h2 className="text-lg font-semibold text-[#2C2C2C]">{selectedMessages.length} Selected</h2>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-semibold text-[#2C2C2C] truncate">{selectedMessages.length} Selected</h2>
                   <p className="text-xs text-gray-400">Select more messages</p>
                 </div>
               </div>
@@ -368,22 +368,22 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
             </>
           ) : (
             <>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setSelectedUser(null)} className="md:hidden p-2 rounded-full hover:bg-gray-100 text-[#2C2C2C] transition">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <button onClick={() => setSelectedUser(null)} className="md:hidden p-2 rounded-full hover:bg-gray-100 text-[#2C2C2C] transition flex-shrink-0">
                   <FiArrowLeft className="text-xl" />
                 </button>
-                <div className="relative cursor-pointer" onClick={() => setShowProfile(true)}>
+                <div className="relative cursor-pointer flex-shrink-0" onClick={() => setShowProfile(true)}>
                   <img src={selectedUser.profilePic ? `${selectedUser.profilePic}?t=${selectedUser.updatedAt || Date.now()}` : "/default-avatar.png"} 
                        alt={selectedUser.name} className="w-10 h-10 rounded-full object-cover border border-gray-200" />
                   <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-white"></div>
                 </div>
-                <div>
-                  <h2 className="text-[#2C2C2C] font-semibold text-lg">{selectedUser.name}</h2>
-                  <p className="text-xs text-gray-400">Online</p>
+                <div className="min-w-0">
+                  <h2 className="text-[#2C2C2C] font-semibold text-lg truncate">{selectedUser.name}</h2>
+                  <p className="text-xs text-gray-400 truncate">Online</p>
                 </div>
               </div>
 
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <button onClick={(e) => { e.stopPropagation(); setShowChatMenu(prev => !prev); }} className="text-[#2C2C2C] hover:text-[#FF7A00] p-2 rounded-full hover:bg-gray-50 transition text-2xl">
                   <FiMoreVertical />
                 </button>
@@ -493,7 +493,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
 
         {/* ================= MESSAGES AREA ================= */}
         {/* 3. Changed this background to 'bg-transparent' so the main wrapper's background image shows through */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-transparent">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 bg-transparent">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-gray-400">
               <span className="text-6xl mb-4">👋</span>
@@ -531,7 +531,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
                   )}
 
                     <div
-                      className={`relative max-w-[75%] md:max-w-md px-4 py-2.5 rounded-2xl shadow-sm transition-all duration-300
+                      className={`relative max-w-[90%] md:max-w-md px-4 py-2.5 rounded-2xl shadow-sm transition-all duration-300 break-words whitespace-pre-wrap
                         ${
                           matched
                             ? "ring-4 ring-yellow-400 shadow-yellow-300/50"
@@ -620,7 +620,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
         </div>
 
         {/* ================= INPUT AREA ================= */}
-        <div className="relative border-t border-gray-200 bg-white px-4 py-3">
+        <div className="relative border-t border-gray-200 bg-white px-4 py-3 overflow-x-hidden">
           {replyMessage && (
             <div className="mb-3 rounded-xl border-l-4 border-[#FF7A00] bg-[#f8f9fa] px-4 py-3 relative">
               <button onClick={() => setReplyMessage(null)} className="absolute top-3 right-3 text-gray-400 hover:text-[#2C2C2C] transition">
@@ -640,7 +640,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
           )}
 
           {(selectedImage || selectedFile) && (
-            <div className="mb-3 flex items-center gap-3 rounded-xl bg-[#f8f9fa] border border-gray-200 p-2">
+            <div className="mb-3 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl bg-[#f8f9fa] border border-gray-200 p-2">
               {selectedImage ? (
                 <button type="button" onClick={() => setPreviewImage(selectedImageUrl)} className="h-14 w-14 overflow-hidden rounded-lg border border-gray-200">
                   <img src={selectedImageUrl} alt="Selected" className="h-full w-full object-cover" />
@@ -658,26 +658,26 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
             </div>
           )}
 
-          <div className="flex items-center gap-2 md:gap-3">
-            <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1">
+          <div className="flex flex-wrap items-end gap-2 md:gap-3">
+            <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1 flex-shrink-0">
               <BsEmojiSmile />
             </button>
-            <button onClick={() => fileInputRef.current.click()} className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1">
+            <button onClick={() => fileInputRef.current.click()} className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1 flex-shrink-0">
               <FiPaperclip />
             </button>
-            <button onClick={() => imageInputRef.current.click()} className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1">
+            <button onClick={() => imageInputRef.current.click()} className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1 flex-shrink-0">
               <FiImage />
             </button>
             <input ref={fileInputRef} type="file" hidden onChange={(e) => { if (e.target.files.length > 0) { setSelectedImage(null); setSelectedFile(e.target.files[0]); } }} />
             <input ref={imageInputRef} type="file" hidden accept="image/*" onChange={(e) => { if (e.target.files.length > 0) { setSelectedFile(null); setSelectedImage(e.target.files[0]); } }} />
 
             <input type="text" value={text} onChange={(e) => { setText(e.target.value); socket.emit("typing", { receiverId: selectedUser._id, senderId: currentUserId }); clearTimeout(typingTimeout.current); typingTimeout.current = setTimeout(() => { socket.emit("stopTyping", { receiverId: selectedUser._id, senderId: currentUserId }); }, 1000); }}
-                   placeholder="Type a message..." className="flex-1 bg-[#f8f9fa] text-[#2C2C2C] rounded-full px-5 py-3 outline-none border border-transparent focus:border-[#FF7A00] focus:bg-white transition"
+                   placeholder="Type a message..." className="min-w-0 flex-1 bg-[#f8f9fa] text-[#2C2C2C] rounded-full px-5 py-3 outline-none border border-transparent focus:border-[#FF7A00] focus:bg-white transition"
                    onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }} />
 
-            <button className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1"><FiMic /></button>
+            <button className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1 flex-shrink-0"><FiMic /></button>
 
-            <button onClick={handleSend} className="bg-[#FF7A00] hover:bg-[#E66E00] rounded-full p-3 text-white shadow-md shadow-orange-200 hover:shadow-orange-300 transform active:scale-95 transition">
+            <button onClick={handleSend} className="bg-[#FF7A00] hover:bg-[#E66E00] rounded-full p-3 text-white shadow-md shadow-orange-200 hover:shadow-orange-300 transform active:scale-95 transition flex-shrink-0">
               <FiSend />
             </button>
           </div>

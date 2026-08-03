@@ -114,7 +114,7 @@ function Sidebar({ selectedUser, setSelectedUser }) {
     }
   };
   return (
-    <aside className="w-full md:w-80 h-screen bg-white flex flex-col shadow-sm relative z-20">
+    <aside className="w-full md:w-80 h-full min-h-0 bg-white flex flex-col shadow-sm relative z-20">
       
       {/* ================= HEADER ================= */}
       <div className="p-5 border-b border-gray-100 bg-white">
