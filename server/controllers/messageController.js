@@ -523,6 +523,23 @@ export const clearChat = async (req, res) => {
       }
     );
 
+    const messages = await Message.find({
+      $or: [
+        { sender: req.user._id, receiver: receiverId },
+        { sender: receiverId, receiver: req.user._id },
+      ],
+    });
+
+    for (const msg of messages) {
+      if (
+        msg.deletedFor.includes(msg.sender) &&
+        msg.deletedFor.includes(msg.receiver)
+      ) {
+        await deleteCloudinaryAsset(msg);
+        await msg.deleteOne();
+      }
+    }
+
     res.json({ message: "Chat cleared" });
   } catch (err) {
     res.status(500).json({ message: "Server Error" });
