@@ -1,7 +1,7 @@
 import axios from "axios";
 import { getSessionToken } from "./session";
-
-const API = "https://chatverse-server-eoma.onrender.com/api/messages";
+console.log(import.meta.env.VITE_API_URL);
+const API = `${import.meta.env.VITE_API_URL}/api/messages`;
 
 const getToken = () => getSessionToken();
 
@@ -112,6 +112,18 @@ export const unpinMessage = async (messageId) => {
   const { data } = await axios.put(
     `${API}/unpin/${messageId}`,
     {},
+    {
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    }
+  );
+
+  return data;
+};
+export const clearChat = async (receiverId) => {
+  const { data } = await axios.delete(
+    `${API}/clear/${receiverId}`,
     {
       headers: {
         Authorization: `Bearer ${getToken()}`,

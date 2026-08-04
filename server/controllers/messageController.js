@@ -505,3 +505,26 @@ export const unpinMessage = async (req, res) => {
     });
   }
 };
+export const clearChat = async (req, res) => {
+  try {
+    const { receiverId } = req.params;
+
+    await Message.updateMany(
+      {
+        $or: [
+          { sender: req.user._id, receiver: receiverId },
+          { sender: receiverId, receiver: req.user._id },
+        ],
+      },
+      {
+        $addToSet: {
+          deletedFor: req.user._id,
+        },
+      }
+    );
+
+    res.json({ message: "Chat cleared" });
+  } catch (err) {
+    res.status(500).json({ message: "Server Error" });
+  }
+};

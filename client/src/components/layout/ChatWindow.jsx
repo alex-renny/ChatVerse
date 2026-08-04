@@ -12,6 +12,7 @@ import { useSwipeable } from "react-swipeable";
 import MessageBubble from "../chat/MessageBubble";
 import chatBackgrounds from "../../data/chatBackgrounds";
 import {getChatBackground,saveChatBackground,} from "../../services/userService";
+import { clearChat } from "../../services/messageService";
 
 function ChatWindow({ selectedUser, setSelectedUser }) {
   const typingTimeout = useRef(null);
@@ -54,9 +55,19 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [showBackgroundSubMenu, setShowBackgroundSubMenu] = useState(false);
   const [chatBackground, setChatBackground] = useState("");
   const backgroundTimer = useRef(null);
+  const [showClearChatModal, setShowClearChatModal] = useState(false);
 
   const reactionWidth = 280;
   const reactionHeight = 60;
+
+  const handleClearChat = async () => {
+    try {
+      await clearChat(selectedUser._id);
+      setMessages([]);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const reactionLeft = reactionMenu && reactionMenu.x + reactionWidth > window.innerWidth
     ? window.innerWidth - reactionWidth - 10
@@ -538,6 +549,15 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
                     >
                       <span>🔍</span> Search
                     </button>
+                    <button
+                      onClick={() => {
+                        setShowClearChatModal(true);
+                        setShowChatMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 text-red-500 flex items-center gap-2 text-sm font-medium transition"
+                    >
+                      <span>🗑</span> Clear Chat
+                    </button>
                     
                     {/* CHANGE BACKGROUND BUTTON - Now using simpler toggle */}
                     <div className="relative">
@@ -869,6 +889,39 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
 
         {showProfile && <ProfilePanel user={selectedUser} onClose={() => setShowProfile(false)} />}
       </div>
+      {showClearChatModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[999]">
+          <div className="bg-white rounded-2xl p-6 w-[340px] shadow-2xl">
+            <h2 className="text-xl font-bold text-[#2C2C2C]">
+              Clear Chat?
+            </h2>
+
+            <p className="text-gray-500 mt-2">
+              This will remove all messages from your chat.
+            </p>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowClearChatModal(false)}
+                className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={async () => {
+                  await clearChat(selectedUser._id);
+                  setMessages([]);
+                  setShowClearChatModal(false);
+                }}
+                className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-orange-600"
+              >
+                Clear Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
