@@ -7,6 +7,7 @@ import { FiMoreVertical, FiSearch, FiX } from "react-icons/fi";
 import ProfileMenu from "../chat/ProfileMenu";
 import MyProfilePanel from "../chat/MyProfilePanel";
 import ChatPasswordPromptModal from "../chat/ChatPasswordPromptModal";
+import { clearChat } from "../../services/messageService";
 
 function Sidebar({ selectedUser, setSelectedUser }) {
   const [users, setUsers] = useState([]);
@@ -209,6 +210,9 @@ function Sidebar({ selectedUser, setSelectedUser }) {
               onSelect={handleSelectUser}
               online={onlineUsers.includes(u._id)}
               onTogglePin={handleTogglePin}
+              onDeleteChat={(user) => {
+                console.log("Delete", user);
+              }}
             />
           ))
         ) : (

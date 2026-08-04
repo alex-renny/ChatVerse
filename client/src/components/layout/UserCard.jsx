@@ -1,13 +1,44 @@
 import { FiMapPin } from "react-icons/fi";
+import { useState } from "react";
+import { useEffect, useRef } from "react";
 
-function UserCard({ user, onSelect, online, onTogglePin }) {
+function UserCard({
+  user,
+  onSelect,
+  online,
+  onTogglePin,
+  onDeleteChat,
+}) {
+
+  const [showMenu, setShowMenu] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const close = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowMenu(false);
+      }
+    };
+
+    document.addEventListener("click", close);
+
+    return () => document.removeEventListener("click", close);
+  }, []);
   return (
     <div
+      ref={menuRef}
       onClick={() => {
         console.log("Clicked:", user);
         onSelect(user);
       }}
-      className="cursor-pointer group bg-white hover:bg-[#f8f9fa] px-4 py-4 border-b border-gray-100 transition-all duration-200"
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowMenu(true);
+      }}
+      className="relative cursor-pointer group bg-white hover:bg-[#f8f9fa] px-4 py-4 border-b border-gray-100 transition-all duration-200"
     >
       <div className="flex items-center gap-3">
 
@@ -70,6 +101,53 @@ function UserCard({ user, onSelect, online, onTogglePin }) {
           {user.isPinned ? "Unpin chat" : "Pin chat"}
         </button>
       </div>
+            {showMenu && (
+              <div className="absolute right-4 top-14 bg-white border rounded-lg shadow-lg z-50">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(false);
+
+                    setShowConfirm(true);
+                  }}
+                  className="block w-full px-4 py-2 text-left text-red-500 hover:bg-gray-100"
+                >
+                  🗑 Delete Chat
+                </button>
+              </div>
+            )}
+            {showConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[999]">
+          <div className="bg-white rounded-xl p-6 w-80 shadow-xl">
+            <h2 className="text-lg font-semibold">
+              Delete Chat?
+            </h2>
+
+            <p className="text-gray-500 mt-2">
+              Delete chat with <b>{user.name}</b>?
+            </p>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="px-4 py-2 rounded-lg bg-gray-200"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  onDeleteChat(user);
+                  setShowConfirm(false);
+                }}
+                className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-orange-500"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
