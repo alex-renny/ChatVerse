@@ -14,24 +14,22 @@ export function AuthProvider({ children }) {
   const [user, setUserState] = useState(getSessionUser);
 
   useEffect(() => {
-  if (!user) return;
+    if (!user) return;
 
-  console.log("Connecting socket...");
-  socket.connect();
-
-  socket.on("connect", () => {
-    console.log("Socket connected:", socket.id);
     const userId = user._id || user.id;
+    const registerUser = () => {
+      if (!userId) return;
+      socket.emit("registerUser", userId);
+    };
 
-    console.log("Registering user:", userId);
+    // Register after every connection (including automatic reconnects). If
+    // hot reload leaves an existing socket open, register immediately too.
+    socket.on("connect", registerUser);
+    socket.connect();
+    if (socket.connected) registerUser();
 
-    socket.emit("registerUser", userId);
-  });
-
-  return () => {
-    socket.off("connect");
-  };
-}, [user]);
+    return () => socket.off("connect", registerUser);
+  }, [user]);
 
   const login = (userData, token) => {
   setUserState(userData);

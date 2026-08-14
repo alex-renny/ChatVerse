@@ -25,18 +25,22 @@ const allowedOrigins = [
   "https://chat-verse-blond.vercel.app",
 ];
 
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-  })
-);
+const isAllowedOrigin = (origin) =>
+  !origin ||
+  allowedOrigins.includes(origin) ||
+  /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+
+const corsOptions = {
+  origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 
 export const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    ...corsOptions,
     methods: ["GET", "POST"],
-    credentials: true,
   },
 });
 
