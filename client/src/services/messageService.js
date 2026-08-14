@@ -1,7 +1,8 @@
 import axios from "axios";
 import { getSessionToken } from "./session";
-console.log(import.meta.env.VITE_API_URL);
-const API = `${import.meta.env.VITE_API_URL}/api/messages`;
+import { API_ORIGIN } from "../config/api";
+
+const API = `${API_ORIGIN}/api/messages`;
 
 const getToken = () => getSessionToken();
 
@@ -19,7 +20,7 @@ export const getMessages = async (receiverId, limit = 30, skip = 0) => {
   return data;
 };
 
-export const sendMessage = async (receiver, text, attachment, replyTo) => {
+export const sendMessage = async (receiver, text, attachment, replyTo, isVoice = false) => {
   const formData = new FormData();
 
   formData.append("receiver", receiver);
@@ -27,6 +28,10 @@ export const sendMessage = async (receiver, text, attachment, replyTo) => {
 
   if (attachment) {
     formData.append("attachment", attachment);
+  }
+
+  if (isVoice) {
+    formData.append("isVoice", "true");
   }
 
   if (replyTo) {
@@ -80,7 +85,7 @@ export const reactToMessage = async (messageId, emoji) => {
   const token = getSessionToken();
 
   const res = await fetch(
-    `https://chatverse-server-eoma.onrender.com/api/messages/react/${messageId}`,
+    `${API}/react/${messageId}`,
     {
       method: "PUT",
       headers: {

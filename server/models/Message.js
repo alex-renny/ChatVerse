@@ -30,12 +30,19 @@ const messageSchema = new mongoose.Schema(
     },
 
     attachment: {
-      url: String,
-      name: String,
-      mimeType: String,
-      size: Number,
-      cloudinaryPublicId: String,
-      resourceType: String,
+      type: new mongoose.Schema(
+        {
+          url: String,
+          name: String,
+          mimeType: String,
+          size: Number,
+          cloudinaryPublicId: String,
+          resourceType: String,
+          isVoice: { type: Boolean, default: false },
+        },
+        { _id: false }
+      ),
+      default: undefined,
     },
     replyTo: {
       type: mongoose.Schema.Types.ObjectId,

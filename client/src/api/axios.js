@@ -1,7 +1,8 @@
 import axios from "axios";
+import { API_ORIGIN } from "../config/api";
 
 const api = axios.create({
-  baseURL: "https://chatverse-server-eoma.onrender.com",
+  baseURL: API_ORIGIN,
 });
 
 export default api;

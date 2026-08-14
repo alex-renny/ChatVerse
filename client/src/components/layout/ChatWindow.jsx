@@ -4,8 +4,10 @@ import socket from "../../services/socket";
 import { useAuth } from "../../context/AuthContext";
 import MessageMenu from "../chat/MessageMenu";
 import EmojiPicker from "emoji-picker-react";
-import { FiPaperclip, FiImage, FiMic, FiSend, FiX, FiArrowLeft, FiMoreVertical, FiChevronUp, FiChevronDown } from "react-icons/fi";
+import { FiPaperclip, FiImage, FiSend, FiX, FiArrowLeft, FiMoreVertical, FiChevronUp, FiChevronDown } from "react-icons/fi";
 import ProfilePanel from "../chat/ProfilePanel";
+import VoiceRecorder from "../chat/VoiceRecorder";
+import VoiceMessagePlayer from "../chat/VoiceMessagePlayer";
 import { IoCheckmark, IoCheckmarkDone } from "react-icons/io5";
 import { BsEmojiSmile } from "react-icons/bs";
 import { useSwipeable } from "react-swipeable";
@@ -28,12 +30,8 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const imageInputRef = useRef(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [selectedAudioUrl, setSelectedAudioUrl] = useState("");
   const [selectedImageUrl, setSelectedImageUrl] = useState("");
   const [previewImage, setPreviewImage] = useState(null);
-  const [recording, setRecording] = useState(false);
-  const [audioChunks, setAudioChunks] = useState([]);
-  const mediaRecorderRef = useRef(null);
   const [typing, setTyping] = useState(false);
   const [replyMessage, setReplyMessage] = useState(null);
   const [reactionMenu, setReactionMenu] = useState(null);
@@ -56,6 +54,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const [chatBackground, setChatBackground] = useState("");
   const backgroundTimer = useRef(null);
   const [showClearChatModal, setShowClearChatModal] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
 
   const reactionWidth = 280;
   const reactionHeight = 60;
@@ -87,15 +86,6 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
     setSelectedImageUrl(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
   }, [selectedImage]);
-
-  useEffect(() => {
-    if (!selectedAudioUrl) {
-      return;
-    }
-    return () => {
-      URL.revokeObjectURL(selectedAudioUrl);
-    };
-  }, [selectedAudioUrl]);
 
   useEffect(() => {
   if (!selectedUser) return;
@@ -274,45 +264,66 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
   const clearSelectedAttachment = () => {
     setSelectedImage(null);
     setSelectedFile(null);
-    setSelectedAudioUrl("");
     setPreviewImage(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
-  const startRecording = async () => {
-    if (recording) {
-      mediaRecorderRef.current?.stop();
-      return;
-    }
+  const isVoiceMessage = (attachment) => {
+    if (!attachment?.url) return false;
+    if (attachment.isVoice) return true;
+    return attachment.mimeType?.startsWith("audio/") &&
+      (attachment.name?.startsWith("voice-") || attachment.name === "Voice message");
+  };
+
+  const hasAttachment = (attachment) => Boolean(attachment?.url);
+
+  const getMessagePreview = (msg) => {
+    if (msg.text) return msg.text;
+    if (msg.image) return "📷 Image";
+    if (isVoiceMessage(msg.attachment)) return "🎤 Voice message";
+    if (hasAttachment(msg.attachment)) return "📎 Attachment";
+    return "";
+  };
+
+  const handleVoiceRecorded = async (voiceFile) => {
+    const replyToId = replyMessage?._id;
+    const tempId = `temp-${Date.now()}`;
+    const previewUrl = URL.createObjectURL(voiceFile);
+
+    const optimisticMessage = {
+      _id: tempId,
+      sender: currentUserId,
+      receiver: selectedUser._id,
+      text: "",
+      attachment: {
+        url: previewUrl,
+        name: "Voice message",
+        mimeType: voiceFile.type,
+        size: voiceFile.size,
+        isVoice: true,
+      },
+      createdAt: new Date().toISOString(),
+      delivered: false,
+      seen: false,
+      replyTo: replyMessage || null,
+      pending: true,
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setReplyMessage(null);
+    setIsSending(true);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      mediaRecorderRef.current = recorder;
-      setRecording(true);
-      setAudioChunks([]);
-
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          setAudioChunks((prev) => [...prev, event.data]);
-        }
-      };
-
-      recorder.onstop = () => {
-        const blob = new Blob(audioChunks, { type: "audio/webm" });
-        const file = new File([blob], `voice-${Date.now()}.webm`, { type: blob.type });
-        setSelectedFile(file);
-        setSelectedAudioUrl(URL.createObjectURL(file));
-        setRecording(false);
-        stream.getTracks().forEach((track) => track.stop());
-      };
-
-      recorder.start();
+      const serverMessage = await sendMessage(selectedUser._id, "", voiceFile, replyToId, true);
+      setMessages((prev) => prev.map((msg) => (msg._id === tempId ? serverMessage : msg)));
     } catch (error) {
-      console.error("Failed to start voice recording:", error);
-      setRecording(false);
-      alert("Could not access microphone. Please allow microphone access and try again.");
+      console.error(error);
+      setMessages((prev) => prev.filter((msg) => msg._id !== tempId));
+      alert("Voice message failed to send. Please try again.");
+    } finally {
+      URL.revokeObjectURL(previewUrl);
+      setIsSending(false);
     }
   };
 
@@ -644,7 +655,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
               <span className="text-[#FF7A00] text-sm font-bold">📌</span>
               <div className="flex flex-col">
                 <span className="text-[#FF7A00] font-semibold text-xs">Pinned Message</span>
-                <div className="text-[#2C2C2C] truncate text-sm max-w-[200px]">{pinnedMessage.text || "📷 Image"}</div>
+                <div className="text-[#2C2C2C] truncate text-sm max-w-[200px]">{getMessagePreview(pinnedMessage)}</div>
               </div>
             </div>
           </div>
@@ -713,7 +724,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
                             {msg.replyTo.sender === currentUserId ? "You" : selectedUser.name}
                           </p>
                           <p className={`text-sm truncate ${isMine ? 'text-white/70' : 'text-gray-500'}`}>
-                            {msg.replyTo.text || "📷 Image"}
+                            {getMessagePreview(msg.replyTo)}
                           </p>
                         </div>
                       )}
@@ -727,11 +738,11 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
                                  onClick={() => setPreviewImage(msg.image)} />
                           )}
                           {msg.text && <p className="leading-relaxed">{msg.text}</p>}
-                          {msg.attachment && msg.attachment.mimeType?.startsWith("audio/") ? (
-                            <div className="mt-2 rounded-xl border border-gray-200 bg-white p-3">
-                              <audio controls src={msg.attachment.url} className="w-full" />
+                          {isVoiceMessage(msg.attachment) ? (
+                            <div className="mt-1">
+                              <VoiceMessagePlayer src={msg.attachment.url} isMine={isMine} />
                             </div>
-                          ) : msg.attachment ? (
+                          ) : hasAttachment(msg.attachment) ? (
                             <a href={msg.attachment.url} download={msg.attachment.name} target="_blank" rel="noreferrer"
                                className={`mt-2 flex items-center gap-2 rounded-lg ${isMine ? 'bg-white/20 text-white' : 'bg-gray-100 text-[#2C2C2C]'} px-3 py-2 text-sm hover:bg-opacity-30 transition`}>
                               <FiPaperclip /> <span className="truncate">{msg.attachment.name}</span>
@@ -794,7 +805,7 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
               <p className="text-sm font-semibold text-[#FF7A00] mb-1">
                 Replying to {replyMessage.sender === currentUserId ? "You" : selectedUser.name}
               </p>
-              <p className="text-[#2C2C2C] truncate pr-8 text-sm">{replyMessage.text || "📷 Image"}</p>
+              <p className="text-[#2C2C2C] truncate pr-8 text-sm">{getMessagePreview(replyMessage)}</p>
             </div>
           )}
 
@@ -810,10 +821,6 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
                 <button type="button" onClick={() => setPreviewImage(selectedImageUrl)} className="h-14 w-14 overflow-hidden rounded-lg border border-gray-200">
                   <img src={selectedImageUrl} alt="Selected" className="h-full w-full object-cover" />
                 </button>
-              ) : selectedFile?.type?.startsWith("audio/") ? (
-                <div className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 bg-white">
-                  <audio controls src={selectedAudioUrl} className="max-w-[150px]" />
-                </div>
               ) : (
                 <FiPaperclip className="ml-2 text-xl text-[#FF7A00]" />
               )}
@@ -828,29 +835,37 @@ function ChatWindow({ selectedUser, setSelectedUser }) {
           )}
 
           <div className="flex flex-wrap items-end gap-2 md:gap-3">
-            <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1 flex-shrink-0">
-              <BsEmojiSmile />
-            </button>
-            <button onClick={() => fileInputRef.current.click()} className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1 flex-shrink-0">
-              <FiPaperclip />
-            </button>
-            <button onClick={() => imageInputRef.current.click()} className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1 flex-shrink-0">
-              <FiImage />
-            </button>
-            <input ref={fileInputRef} type="file" hidden onChange={(e) => { if (e.target.files.length > 0) { setSelectedImage(null); setSelectedFile(e.target.files[0]); } }} />
-            <input ref={imageInputRef} type="file" hidden accept="image/*" onChange={(e) => { if (e.target.files.length > 0) { setSelectedFile(null); setSelectedImage(e.target.files[0]); } }} />
+            {!isRecordingVoice && (
+              <>
+                <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1 flex-shrink-0">
+                  <BsEmojiSmile />
+                </button>
+                <button onClick={() => fileInputRef.current.click()} className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1 flex-shrink-0">
+                  <FiPaperclip />
+                </button>
+                <button onClick={() => imageInputRef.current.click()} className="text-gray-400 hover:text-[#FF7A00] transition text-2xl p-1 flex-shrink-0">
+                  <FiImage />
+                </button>
+                <input ref={fileInputRef} type="file" hidden onChange={(e) => { if (e.target.files.length > 0) { setSelectedImage(null); setSelectedFile(e.target.files[0]); } }} />
+                <input ref={imageInputRef} type="file" hidden accept="image/*" onChange={(e) => { if (e.target.files.length > 0) { setSelectedFile(null); setSelectedImage(e.target.files[0]); } }} />
 
-            <input type="text" value={text} onChange={(e) => { setText(e.target.value); socket.emit("typing", { receiverId: selectedUser._id, senderId: currentUserId }); clearTimeout(typingTimeout.current); typingTimeout.current = setTimeout(() => { socket.emit("stopTyping", { receiverId: selectedUser._id, senderId: currentUserId }); }, 1000); }}
-                   placeholder="Type a message..." className="min-w-0 flex-1 bg-[#f8f9fa] text-[#2C2C2C] rounded-full px-5 py-3 outline-none border border-transparent focus:border-[#FF7A00] focus:bg-white transition"
-                   onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }} />
+                <input type="text" value={text} onChange={(e) => { setText(e.target.value); socket.emit("typing", { receiverId: selectedUser._id, senderId: currentUserId }); clearTimeout(typingTimeout.current); typingTimeout.current = setTimeout(() => { socket.emit("stopTyping", { receiverId: selectedUser._id, senderId: currentUserId }); }, 1000); }}
+                       placeholder="Type a message..." className="min-w-0 flex-1 bg-[#f8f9fa] text-[#2C2C2C] rounded-full px-5 py-3 outline-none border border-transparent focus:border-[#FF7A00] focus:bg-white transition"
+                       onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }} />
+              </>
+            )}
 
-            <button onClick={startRecording} className={`text-gray-400 transition text-2xl p-1 flex-shrink-0 ${recording ? "text-red-500" : "hover:text-[#FF7A00]"}`}>
-              <FiMic />
-            </button>
+            <VoiceRecorder
+              onRecorded={handleVoiceRecorded}
+              onRecordingChange={setIsRecordingVoice}
+              disabled={isSending}
+            />
 
-            <button onClick={handleSend} disabled={isSending} className="bg-[#FF7A00] hover:bg-[#E66E00] rounded-full p-3 text-white shadow-md shadow-orange-200 hover:shadow-orange-300 transform active:scale-95 transition flex-shrink-0 disabled:opacity-60 disabled:pointer-events-none">
-              <FiSend />
-            </button>
+            {!isRecordingVoice && (
+              <button onClick={handleSend} disabled={isSending || (!text.trim() && !selectedImage && !selectedFile)} className="bg-[#FF7A00] hover:bg-[#E66E00] rounded-full p-3 text-white shadow-md shadow-orange-200 hover:shadow-orange-300 transform active:scale-95 transition flex-shrink-0 disabled:opacity-60 disabled:pointer-events-none">
+                <FiSend />
+              </button>
+            )}
           </div>
         </div>
 

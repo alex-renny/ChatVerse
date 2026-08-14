@@ -1,6 +1,7 @@
 import { FiMapPin } from "react-icons/fi";
 import { useState } from "react";
 import { useEffect, useRef } from "react";
+import { API_ORIGIN } from "../../config/api";
 
 function UserCard({
   user,
@@ -49,7 +50,7 @@ function UserCard({
               src={
                 user.profilePic?.startsWith("http")
                   ? user.profilePic
-                  : `https://chatverse-server-eoma.onrender.com${user.profilePic}`
+                  : `${API_ORIGIN}${user.profilePic}`
               }
               alt={user.name}
               className="w-full h-full object-cover"

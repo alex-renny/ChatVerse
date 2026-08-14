@@ -15,13 +15,13 @@ const getCloudinaryAsset = (message) => {
   const storedPublicId = message.imagePublicId || message.attachment?.cloudinaryPublicId;
 
   if (storedPublicId) {
-    return {
-      publicId: storedPublicId,
-      resourceType: message.image
-        ? message.imageResourceType || "image"
-        : message.attachment?.resourceType ||
-          (message.attachment?.mimeType?.startsWith("video/") ? "video" : "raw"),
-    };
+    const mime = message.attachment?.mimeType || "";
+    const defaultType = message.image
+      ? message.imageResourceType || "image"
+      : message.attachment?.resourceType ||
+        (mime.startsWith("video/") || mime.startsWith("audio/") ? "video" : "raw");
+
+    return { publicId: storedPublicId, resourceType: defaultType };
   }
 
   // Messages created before Cloudinary IDs were saved can still be cleaned up
@@ -42,19 +42,28 @@ const deleteCloudinaryAsset = async (message) => {
 
   if (!asset) return;
 
-  try {
-    const result = await cloudinary.uploader.destroy(asset.publicId, {
-      resource_type: asset.resourceType,
-      invalidate: true,
-    });
+  const typesToTry = [asset.resourceType];
+  const mime = message.attachment?.mimeType || "";
+  if (mime.startsWith("audio/") && !typesToTry.includes("video")) {
+    typesToTry.push("video");
+  }
+  if (!typesToTry.includes("raw")) {
+    typesToTry.push("raw");
+  }
 
-    if (result.result !== "ok" && result.result !== "not found") {
+  for (const resourceType of typesToTry) {
+    try {
+      const result = await cloudinary.uploader.destroy(asset.publicId, {
+        resource_type: resourceType,
+        invalidate: true,
+      });
+
+      if (result.result === "ok" || result.result === "not found") return;
+
       console.warn("Cloudinary did not confirm asset deletion:", result);
+    } catch (error) {
+      console.error(`Failed to delete Cloudinary asset as ${resourceType}:`, error);
     }
-  } catch (error) {
-    // The message should still be removed for both people if Cloudinary has
-    // already removed the asset or is temporarily unavailable.
-    console.error("Failed to delete Cloudinary asset:", error);
   }
 };
 
@@ -79,15 +88,18 @@ export const sendMessage = async (req, res) => {
 
     const uploadUrl = req.file ? req.file.path : "";
     const isImage = req.file?.mimetype?.startsWith("image/");
+    const isVoice = req.body.isVoice === "true";
     const image = isImage ? uploadUrl : "";
+    const mime = req.file?.mimetype || "";
     const attachment = req.file && !image
       ? {
           url: uploadUrl,
-          name: req.file.originalname,
+          name: isVoice ? "Voice message" : req.file.originalname,
           mimeType: req.file.mimetype,
           size: req.file.size,
           cloudinaryPublicId: req.file.filename,
-          resourceType: req.file.mimetype?.startsWith("video/") ? "video" : "raw",
+          resourceType: mime.startsWith("video/") || mime.startsWith("audio/") ? "video" : "raw",
+          isVoice,
         }
       : undefined;
 
@@ -118,17 +130,6 @@ const receiverSocketId = onlineUsers.get(receiver);
 if (receiverSocketId) {
   message.delivered = true;
   await message.save();
-  const receiverSocket = onlineUsers.get(message.receiver.toString());
-  const senderSocket = onlineUsers.get(message.sender.toString());
-
-  if (receiverSocket) {
-    io.to(receiverSocket).emit("messageReaction", message);
-  }
-
-  if (senderSocket) {
-    io.to(senderSocket).emit("messageReaction", message);
-  }
-
   io.to(receiverSocketId).emit("receiveMessage", message);
 }
 
