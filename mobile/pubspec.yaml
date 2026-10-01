@@ -1,0 +1,79 @@
+name: chatverse_mobile
+description: ChatVerse Android App - Cross-platform chat client
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # HTTP & Networking
+  http: ^1.2.2
+  dio: ^5.7.0
+
+  # Socket.IO real-time
+  socket_io_client: ^3.0.2
+
+  # State management
+  provider: ^6.1.2
+
+  # Local storage (JWT token, user session)
+  shared_preferences: ^2.3.3
+  flutter_secure_storage: ^9.2.2
+
+  # Image handling
+  cached_network_image: ^3.4.1
+  image_picker: ^1.1.2
+
+  # File picking & opening
+  file_picker: ^11.0.3
+  open_file: ^3.5.8
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+  # Audio recording & playback (voice messages)
+  record: ^7.1.1
+  just_audio: ^0.9.42
+  audio_session: ^0.1.21
+
+  # Video player (video attachments)
+  video_player: ^2.9.2
+  chewie: ^1.8.5
+
+  # Date / time formatting
+  intl: ^0.19.0
+  timeago: ^3.7.0
+
+  # Icons
+  cupertino_icons: ^1.0.8
+
+  # Emoji picker for reactions
+  emoji_picker_flutter: ^4.5.4
+
+  # URL launcher
+  url_launcher: ^6.3.1
+
+  # Permission handling
+  permission_handler: ^11.3.1
+
+  # Shimmer loading
+  shimmer: ^3.0.0
+
+  # Flutter SVG support
+  flutter_svg: ^2.0.10+1
+
+  # Document viewer
+  syncfusion_flutter_pdfviewer: ^33.2.13
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
