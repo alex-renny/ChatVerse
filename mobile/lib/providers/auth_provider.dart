@@ -39,16 +39,24 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    final result = await AuthService.login(email: email, password: password);
-    if (result['success'] == true) {
-      _user = result['user'] as UserModel;
-      _token = result['token'] as String;
-      _status = AuthStatus.authenticated;
-      SocketService.instance.init(_user!.id, _token!);
-      notifyListeners();
-      return true;
-    } else {
-      _error = result['message'] as String?;
+    try {
+      final result = await AuthService.login(email: email, password: password)
+          .timeout(const Duration(seconds: 15));
+      if (result['success'] == true) {
+        _user = result['user'] as UserModel;
+        _token = result['token'] as String;
+        _status = AuthStatus.authenticated;
+        SocketService.instance.init(_user!.id, _token!);
+        notifyListeners();
+        return true;
+      } else {
+        _error = result['message'] as String?;
+        _status = AuthStatus.unauthenticated;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = 'Connection error or timeout';
       _status = AuthStatus.unauthenticated;
       notifyListeners();
       return false;
@@ -60,14 +68,22 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    final result = await AuthService.register(
-        name: name, email: email, password: password);
-    _status = AuthStatus.unauthenticated;
-    if (result['success'] != true) {
-      _error = result['message'] as String?;
+    try {
+      final result = await AuthService.register(
+          name: name, email: email, password: password)
+          .timeout(const Duration(seconds: 15));
+      _status = AuthStatus.unauthenticated;
+      if (result['success'] != true) {
+        _error = result['message'] as String?;
+      }
+      notifyListeners();
+      return result['success'] == true;
+    } catch (e) {
+      _error = 'Connection error or timeout';
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return false;
     }
-    notifyListeners();
-    return result['success'] == true;
   }
 
   Future<bool> updateProfile({

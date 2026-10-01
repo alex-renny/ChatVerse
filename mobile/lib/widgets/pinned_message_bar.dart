@@ -19,11 +19,16 @@ class PinnedMessageBar extends StatelessWidget {
     final preview = message.text.isNotEmpty ? message.text : '[Attachment]';
 
     return Container(
-      color: const Color(0xFF14142B),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFFF7ED),
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFFFEDD5), width: 1),
+        ),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          const Icon(Icons.push_pin, color: Color(0xFF7C3AED), size: 16),
+          const Icon(Icons.push_pin, color: Color(0xFFFF7A00), size: 16),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -32,8 +37,8 @@ class PinnedMessageBar extends StatelessWidget {
                 const Text(
                   'Pinned Message',
                   style: TextStyle(
-                    color: Color(0xFF7C3AED),
-                    fontSize: 11,
+                    color: Color(0xFFFF7A00),
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -42,13 +47,13 @@ class PinnedMessageBar extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style:
-                      const TextStyle(color: Colors.white60, fontSize: 13),
+                      const TextStyle(color: Color(0xFF2C2C2C), fontSize: 13),
                 ),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close, color: Colors.white38, size: 18),
+            icon: const Icon(Icons.close, color: Colors.grey, size: 18),
             onPressed: onUnpin,
           ),
         ],

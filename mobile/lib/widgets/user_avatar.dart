@@ -15,19 +15,6 @@ class UserAvatar extends StatelessWidget {
     this.radius = 24,
   });
 
-  Color get _color {
-    final colors = [
-      const Color(0xFF7C3AED),
-      const Color(0xFF3B82F6),
-      const Color(0xFFEC4899),
-      const Color(0xFF10B981),
-      const Color(0xFFF59E0B),
-      const Color(0xFF6366F1),
-    ];
-    final code = name.isEmpty ? 0 : name.codeUnitAt(0);
-    return colors[code % colors.length];
-  }
-
   String get _initial => name.isNotEmpty ? name[0].toUpperCase() : '?';
 
   @override
@@ -35,7 +22,7 @@ class UserAvatar extends StatelessWidget {
     if (url != null && url!.isNotEmpty) {
       return CircleAvatar(
         radius: radius,
-        backgroundColor: _color,
+        backgroundColor: const Color(0x1AFF7A00),
         child: ClipOval(
           child: CachedNetworkImage(
             imageUrl: url!,
@@ -50,7 +37,7 @@ class UserAvatar extends StatelessWidget {
     }
     return CircleAvatar(
       radius: radius,
-      backgroundColor: _color,
+      backgroundColor: const Color(0x1AFF7A00),
       child: _placeholder(),
     );
   }
@@ -58,7 +45,7 @@ class UserAvatar extends StatelessWidget {
   Widget _placeholder() => Text(
         _initial,
         style: TextStyle(
-          color: Colors.white,
+          color: const Color(0xFFFF7A00),
           fontSize: radius * 0.8,
           fontWeight: FontWeight.bold,
         ),

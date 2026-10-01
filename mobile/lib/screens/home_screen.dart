@@ -21,7 +21,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
   bool _showSearch = false;
-  int _selectedTab = 0; // 0 = conversations, 1 = all users
 
   @override
   void initState() {
@@ -52,9 +51,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<UserModel> get _filteredUsers {
     final users = context.read<UsersProvider>();
-    final list = _selectedTab == 0 ? users.conversationUsers : users.allUsers;
-    if (_searchQuery.isEmpty) return list;
-    return list
+    if (_searchQuery.isEmpty) return users.conversationUsers;
+    return users.allUsers
         .where((u) =>
             u.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
             u.email.toLowerCase().contains(_searchQuery.toLowerCase()))
@@ -67,139 +65,171 @@ class _HomeScreenState extends State<HomeScreen> {
     final users = context.watch<UsersProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F0F23),
-        elevation: 0,
-        title: _showSearch
-            ? TextField(
-                controller: _searchCtrl,
-                autofocus: true,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  hintText: 'Search users...',
-                  hintStyle: TextStyle(color: Colors.white38),
-                  border: InputBorder.none,
-                ),
-                onChanged: (v) => setState(() => _searchQuery = v),
-              )
-            : const Text('ChatVerse',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20)),
-        actions: [
-          IconButton(
-            icon: Icon(_showSearch ? Icons.close : Icons.search,
-                color: Colors.white70),
-            onPressed: () => setState(() {
-              _showSearch = !_showSearch;
-              if (!_showSearch) {
-                _searchCtrl.clear();
-                _searchQuery = '';
-              }
-            }),
-          ),
-          GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ProfileScreen()),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: UserAvatar(
-                url: auth.user?.profilePic,
-                name: auth.user?.name ?? '',
-                radius: 18,
-              ),
-            ),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(44),
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 0),
-            child: Row(
-              children: [
-                _tabButton('Chats', 0),
-                _tabButton('People', 1),
-              ],
-            ),
-          ),
-        ),
-      ),
-      body: users.loading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF7C3AED)))
-          : RefreshIndicator(
-              color: const Color(0xFF7C3AED),
-              onRefresh: () async {
-                await users.fetchConversationUsers();
-                await users.fetchUsers();
-              },
-              child: _filteredUsers.isEmpty
-                  ? _emptyState()
-                  : ListView.builder(
-                      itemCount: _filteredUsers.length,
-                      itemBuilder: (ctx, i) =>
-                          _UserTile(user: _filteredUsers[i]),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(auth),
+            _buildSearchBar(),
+            Expanded(
+              child: users.loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: Color(0xFFFF7A00)))
+                  : RefreshIndicator(
+                      color: const Color(0xFFFF7A00),
+                      onRefresh: () async {
+                        await users.fetchConversationUsers();
+                        await users.fetchUsers();
+                      },
+                      child: _filteredUsers.isEmpty
+                          ? _emptyState()
+                          : ListView.builder(
+                              itemCount: _filteredUsers.length,
+                              itemBuilder: (ctx, i) =>
+                                  _UserTile(user: _filteredUsers[i]),
+                            ),
                     ),
             ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _tabButton(String label, int index) {
-    final isActive = _selectedTab == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedTab = index),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color:
-                    isActive ? const Color(0xFF7C3AED) : Colors.transparent,
-                width: 2,
+  Widget _buildHeader(AuthProvider auth) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'ReSender',
+                style: TextStyle(
+                  color: Color(0xFFFF7A00),
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
               ),
-            ),
+              Text(
+                'Welcome back, ${auth.user?.name ?? ''}',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: isActive ? const Color(0xFF7C3AED) : Colors.white38,
-              fontWeight:
-                  isActive ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Color(0xFF2C2C2C)),
+            onSelected: (val) {
+              if (val == 'profile') {
+                Navigator.push(
+                    context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+              } else if (val == 'search') {
+                setState(() => _showSearch = true);
+              } else if (val == 'logout') {
+                context.read<AuthProvider>().logout();
+                Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (r) => false);
+              }
+            },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(value: 'profile', child: Text('Profile')),
+              const PopupMenuItem(value: 'search', child: Text('Search')),
+              const PopupMenuItem(value: 'logout', child: Text('Logout')),
+            ],
+          )
+        ],
       ),
     );
+  }
+
+  Widget _buildSearchBar() {
+    if (_showSearch) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFF7A00)),
+        ),
+        child: TextField(
+          controller: _searchCtrl,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: 'Search contacts...',
+            prefixIcon: const Icon(Icons.search, color: Colors.grey),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.close, color: Colors.grey),
+              onPressed: () {
+                setState(() {
+                  _showSearch = false;
+                  _searchCtrl.clear();
+                  _searchQuery = '';
+                });
+              },
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+          onChanged: (v) => setState(() => _searchQuery = v),
+        ),
+      );
+    } else {
+      return GestureDetector(
+        onTap: () => setState(() => _showSearch = true),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FA),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.search, color: Colors.grey, size: 20),
+              SizedBox(width: 8),
+              Text('Search contacts...',
+                  style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        ),
+      );
+    }
   }
 
   Widget _emptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            _selectedTab == 0
-                ? Icons.chat_bubble_outline
-                : Icons.people_outline,
-            size: 64,
-            color: Colors.white24,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _selectedTab == 0
-                ? 'No conversations yet\nStart chatting!'
-                : 'No users found',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white38, fontSize: 16),
-          ),
-        ],
-      ),
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Text('💬', style: TextStyle(fontSize: 48)),
+            SizedBox(height: 16),
+            Text(
+              'No users found',
+              style: TextStyle(
+                color: Color(0xFF2C2C2C),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Try a different search term',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -214,23 +244,23 @@ class _UserTile extends StatelessWidget {
     final isOnline = onlineIds.contains(user.id);
 
     return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      tileColor: Colors.white,
       leading: Stack(
         clipBehavior: Clip.none,
         children: [
-          UserAvatar(url: user.profilePic, name: user.name, radius: 26),
+          UserAvatar(url: user.profilePic, name: user.name, radius: 24),
           if (isOnline)
             Positioned(
-              right: -1,
-              bottom: -1,
+              right: 0,
+              bottom: 0,
               child: Container(
-                width: 13,
-                height: 13,
+                width: 14,
+                height: 14,
                 decoration: BoxDecoration(
-                  color: Colors.greenAccent,
+                  color: Colors.green,
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF0A0A1A), width: 2),
+                  border: Border.all(color: Colors.white, width: 2),
                 ),
               ),
             ),
@@ -239,16 +269,17 @@ class _UserTile extends StatelessWidget {
       title: Text(
         user.name,
         style: const TextStyle(
-            color: Colors.white, fontWeight: FontWeight.w600),
+          color: Color(0xFF2C2C2C),
+          fontWeight: FontWeight.bold,
+        ),
       ),
       subtitle: Text(
         isOnline ? 'Online' : user.status,
         style: TextStyle(
-          color: isOnline ? Colors.greenAccent : Colors.white38,
-          fontSize: 12,
+          color: isOnline ? Colors.green : Colors.grey,
+          fontSize: 13,
         ),
       ),
-      trailing: const Icon(Icons.chevron_right, color: Colors.white24),
       onTap: () {
         context.read<ChatProvider>().clearConversation();
         Navigator.push(

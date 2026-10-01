@@ -23,30 +23,36 @@ class ChatVerseApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ChatProvider()),
       ],
       child: MaterialApp(
-        title: 'ChatVerse',
+        title: 'ReSender',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          brightness: Brightness.dark,
-          scaffoldBackgroundColor: const Color(0xFF0A0A1A),
-          colorScheme: ColorScheme.dark(
-            primary: const Color(0xFF7C3AED),
-            secondary: const Color(0xFF3B82F6),
-            surface: const Color(0xFF1A1A2E),
+          brightness: Brightness.light,
+          scaffoldBackgroundColor: const Color(0xFFF8F9FA),
+          colorScheme: const ColorScheme.light(
+            primary: Color(0xFFFF7A00),
+            secondary: Color(0xFF2C2C2C),
+            surface: Colors.white,
           ),
-          fontFamily: 'Roboto',
           appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF0F0F23),
+            backgroundColor: Colors.white,
             elevation: 0,
-            iconTheme: IconThemeData(color: Colors.white70),
+            iconTheme: IconThemeData(color: Color(0xFF2C2C2C)),
             titleTextStyle: TextStyle(
-              color: Colors.white,
+              color: Color(0xFF2C2C2C),
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
+            shape: Border(
+              bottom: BorderSide(
+                color: Color(0xFFE5E7EB),
+                width: 1,
+              ),
+            ),
           ),
           snackBarTheme: const SnackBarThemeData(
-            backgroundColor: Color(0xFF1A1A2E),
-            contentTextStyle: TextStyle(color: Colors.white),
+            backgroundColor: Colors.white,
+            elevation: 4,
+            behavior: SnackBarBehavior.floating,
           ),
           useMaterial3: true,
         ),
@@ -89,18 +95,18 @@ class _SplashState extends State<_Splash> {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: Color(0xFF0A0A1A),
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.chat_bubble_rounded,
-                size: 72, color: Color(0xFF7C3AED)),
+                size: 72, color: Color(0xFFFF7A00)),
             SizedBox(height: 20),
             Text(
-              'ChatVerse',
+              'ReSender',
               style: TextStyle(
-                color: Colors.white,
+                color: Color(0xFF2C2C2C),
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.5,
@@ -108,7 +114,7 @@ class _SplashState extends State<_Splash> {
             ),
             SizedBox(height: 40),
             CircularProgressIndicator(
-              color: Color(0xFF7C3AED),
+              color: Color(0xFFFF7A00),
               strokeWidth: 2,
             ),
           ],
