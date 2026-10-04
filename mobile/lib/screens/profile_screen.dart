@@ -7,6 +7,7 @@ import '../models/user_model.dart';
 import '../services/api_service.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/password_prompt_dialog.dart';
+import '../widgets/animated_page_route.dart';
 import 'auth/login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -347,7 +348,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (!mounted) return;
                   Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    animatedPageRoute(const LoginScreen()),
                     (_) => false,
                   );
                 },

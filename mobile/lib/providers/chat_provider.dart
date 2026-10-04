@@ -92,9 +92,10 @@ class ChatProvider extends ChangeNotifier {
     socket.onMessagesSeen = (receiverId) {
       if (receiverId == _currentPartnerId) {
         _messages = _messages
-            .map((m) => m.senderId == _currentUserId && m.receiverId == receiverId
-                ? m.copyWith(seen: true)
-                : m)
+            .map((m) =>
+                m.senderId == _currentUserId && m.receiverId == receiverId
+                    ? m.copyWith(seen: true)
+                    : m)
             .toList();
         notifyListeners();
       }
@@ -143,22 +144,46 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> loadMore(String partnerId) => loadMessages(partnerId);
 
-  Future<void> sendText(String text, String receiverId) async {
-    if (text.trim().isEmpty) return;
+  Future<bool> sendText(String text, String receiverId) async {
+    if (text.trim().isEmpty) return false;
+    final optimisticId = 'local-${DateTime.now().microsecondsSinceEpoch}';
+    final now = DateTime.now();
+    final optimistic = MessageModel(
+      id: optimisticId,
+      senderId: _currentUserId ?? '',
+      receiverId: receiverId,
+      text: text.trim(),
+      replyTo: _replyingTo,
+      createdAt: now,
+      updatedAt: now,
+      isSending: true,
+    );
+    _messages.insert(0, optimistic);
     _sending = true;
     notifyListeners();
 
-    final msg = await ApiService.sendTextMessage(
-      receiverId: receiverId,
-      text: text.trim(),
-      replyToId: _replyingTo?.id,
-    );
+    MessageModel? msg;
+    try {
+      msg = await ApiService.sendTextMessage(
+        receiverId: receiverId,
+        text: text.trim(),
+        replyToId: _replyingTo?.id,
+      );
+    } catch (_) {
+      msg = null;
+    }
     _replyingTo = null;
     _sending = false;
     if (msg != null) {
-      _messages.insert(0, msg);
+      final index = _messages.indexWhere((m) => m.id == optimisticId);
+      if (index >= 0) _messages[index] = msg;
+    } else {
+      _messages.removeWhere((m) => m.id == optimisticId);
+      _error =
+          'Message could not be sent. Check your connection and try again.';
     }
     notifyListeners();
+    return msg != null;
   }
 
   Future<void> sendFile(File file, String receiverId,

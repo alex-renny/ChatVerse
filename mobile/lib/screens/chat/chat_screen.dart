@@ -14,6 +14,7 @@ import '../../providers/chat_provider.dart';
 import '../../providers/users_provider.dart';
 import '../../services/api_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import '../../widgets/message_bubble.dart';
 import '../../widgets/user_avatar.dart';
 import '../../widgets/password_prompt_dialog.dart';
@@ -31,6 +32,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scrollCtrl = ScrollController();
   final _record = AudioRecorder();
   bool _isRecording = false;
+  bool _isRecordingPaused = false;
+  bool _showEmojiPicker = false;
   String? _recordPath;
   Timer? _recordTimer;
   int _recordSeconds = 0;
@@ -144,7 +147,16 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _textCtrl.text.trim();
     if (text.isEmpty) return;
     _textCtrl.clear();
-    await context.read<ChatProvider>().sendText(text, widget.partner.id);
+    final sent =
+        await context.read<ChatProvider>().sendText(text, widget.partner.id);
+    if (!sent && mounted) {
+      if (_textCtrl.text.isEmpty) _textCtrl.text = text;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Message could not be sent. Check your connection and try again.')),
+      );
+    }
   }
 
   Future<void> _pickImage() async {
@@ -165,8 +177,17 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _startRecording() async {
+    if (_isRecording) return;
     final hasPermission = await _record.hasPermission();
-    if (!hasPermission) return;
+    if (!hasPermission) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Microphone permission is required to record voice messages')),
+        );
+      return;
+    }
     final dir = await getTemporaryDirectory();
     _recordPath =
         '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
@@ -176,21 +197,66 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     setState(() {
       _isRecording = true;
+      _isRecordingPaused = false;
       _recordSeconds = 0;
     });
-    _recordTimer = Timer.periodic(
-        const Duration(seconds: 1), (_) => setState(() => _recordSeconds++));
+    _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && !_isRecordingPaused) setState(() => _recordSeconds++);
+    });
+  }
+
+  Future<void> _toggleRecordingPause() async {
+    if (!_isRecording) return;
+    if (_isRecordingPaused) {
+      await _record.resume();
+    } else {
+      await _record.pause();
+    }
+    if (mounted) setState(() => _isRecordingPaused = !_isRecordingPaused);
   }
 
   Future<void> _stopRecording() async {
+    if (!_isRecording) return;
     _recordTimer?.cancel();
     final path = await _record.stop();
-    setState(() => _isRecording = false);
-    if (path != null && mounted) {
+    if (mounted)
+      setState(() {
+        _isRecording = false;
+        _isRecordingPaused = false;
+      });
+    if (path != null && mounted && await File(path).exists()) {
       await context
           .read<ChatProvider>()
           .sendFile(File(path), widget.partner.id, isVoice: true);
     }
+  }
+
+  Future<void> _cancelRecording() async {
+    if (!_isRecording) return;
+    _recordTimer?.cancel();
+    final path = await _record.stop();
+    if (path != null) {
+      try {
+        await File(path).delete();
+      } catch (_) {}
+    }
+    if (mounted)
+      setState(() {
+        _isRecording = false;
+        _isRecordingPaused = false;
+      });
+  }
+
+  void _insertEmoji(String emoji) {
+    final value = _textCtrl.value;
+    final selection = value.selection;
+    final start = selection.isValid ? selection.start : value.text.length;
+    final end = selection.isValid ? selection.end : value.text.length;
+    final text = value.text.replaceRange(start, end, emoji);
+    _textCtrl.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: start + emoji.length),
+    );
   }
 
   Widget _buildEmptyState() {
@@ -479,7 +545,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                   final msg = visibleMessages[msgIndex];
 
                                   // Apply new design for text messages
-                                  if (msg.text.isNotEmpty) {
+                                  if (msg.text.isNotEmpty &&
+                                      msg.image.isEmpty &&
+                                      msg.attachment == null) {
                                     return _animateMessage(
                                         msg.id,
                                         _NewMessageBubble(
@@ -535,12 +603,25 @@ class _ChatScreenState extends State<ChatScreen> {
                   _InputBar(
                     controller: _textCtrl,
                     isRecording: _isRecording,
+                    isRecordingPaused: _isRecordingPaused,
+                    showEmojiPicker: _showEmojiPicker,
                     recordSeconds: _recordSeconds,
                     onSend: _sendText,
                     onPickImage: _pickImage,
                     onPickFile: _pickFile,
                     onStartRecord: _startRecording,
                     onStopRecord: _stopRecording,
+                    onCancelRecord: _cancelRecording,
+                    onTogglePause: _toggleRecordingPause,
+                    onEmojiToggle: () {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      setState(() => _showEmojiPicker = !_showEmojiPicker);
+                    },
+                    onEmojiSelected: _insertEmoji,
+                    onHideEmoji: () {
+                      if (_showEmojiPicker)
+                        setState(() => _showEmojiPicker = false);
+                    },
                     onChanged: (v) => chat.onInputChanged(
                         v, auth.user!.id, widget.partner.id),
                   ),
@@ -857,7 +938,15 @@ class _NewMessageBubble extends StatelessWidget {
                   ),
                   if (isMe) ...[
                     const SizedBox(width: 4),
-                    const Icon(Icons.done_all, color: Colors.white70, size: 12),
+                    if (message.isSending)
+                      const SizedBox(
+                          width: 10,
+                          height: 10,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 1.5, color: Colors.white70))
+                    else
+                      const Icon(Icons.done_all,
+                          color: Colors.white70, size: 12),
                   ]
                 ],
               ),
@@ -919,23 +1008,37 @@ class _ReplyPreview extends StatelessWidget {
 class _InputBar extends StatelessWidget {
   final TextEditingController controller;
   final bool isRecording;
+  final bool isRecordingPaused;
+  final bool showEmojiPicker;
   final int recordSeconds;
   final VoidCallback onSend;
   final VoidCallback onPickImage;
   final VoidCallback onPickFile;
   final VoidCallback onStartRecord;
   final VoidCallback onStopRecord;
+  final VoidCallback onCancelRecord;
+  final VoidCallback onTogglePause;
+  final VoidCallback onEmojiToggle;
+  final ValueChanged<String> onEmojiSelected;
+  final VoidCallback onHideEmoji;
   final ValueChanged<String> onChanged;
 
   const _InputBar({
     required this.controller,
     required this.isRecording,
+    required this.isRecordingPaused,
+    required this.showEmojiPicker,
     required this.recordSeconds,
     required this.onSend,
     required this.onPickImage,
     required this.onPickFile,
     required this.onStartRecord,
     required this.onStopRecord,
+    required this.onCancelRecord,
+    required this.onTogglePause,
+    required this.onEmojiToggle,
+    required this.onEmojiSelected,
+    required this.onHideEmoji,
     required this.onChanged,
   });
 
@@ -955,109 +1058,139 @@ class _InputBar extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
-          children: [
-            if (!isRecording) ...[
-              IconButton(
-                icon: const Icon(Icons.emoji_emotions_outlined,
-                    color: Colors.black54),
-                onPressed: () {},
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          if (showEmojiPicker && !isRecording)
+            SizedBox(
+              height: 260,
+              child: EmojiPicker(
+                onEmojiSelected: (_, emoji) => onEmojiSelected(emoji.emoji),
+                config: const Config(
+                  emojiViewConfig:
+                      EmojiViewConfig(backgroundColor: Color(0xFFF8F9FA)),
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.image_outlined, color: Colors.black54),
-                onPressed: onPickImage,
+            ),
+          Row(
+            children: [
+              if (!isRecording) ...[
+                IconButton(
+                  icon: const Icon(Icons.emoji_emotions_outlined,
+                      color: Colors.black54),
+                  onPressed: onEmojiToggle,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.image_outlined, color: Colors.black54),
+                  onPressed: onPickImage,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.attach_file, color: Colors.black54),
+                  onPressed: onPickFile,
+                ),
+              ],
+              Expanded(
+                child: isRecording
+                    ? Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                            color: const Color(0xFFFFF1F0),
+                            borderRadius: BorderRadius.circular(26)),
+                        child: Row(children: [
+                          IconButton(
+                              tooltip: 'Discard recording',
+                              onPressed: onCancelRecord,
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Colors.redAccent)),
+                          IconButton(
+                              tooltip: isRecordingPaused
+                                  ? 'Resume recording'
+                                  : 'Pause recording',
+                              onPressed: onTogglePause,
+                              icon: Icon(
+                                  isRecordingPaused ? Icons.mic : Icons.pause,
+                                  color: const Color(0xFFFF7A00))),
+                          Expanded(
+                              child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                _RecordingWaveform(paused: isRecordingPaused),
+                                Text(
+                                    '${isRecordingPaused ? 'Paused' : 'Recording'}  $_formatTime',
+                                    style: const TextStyle(
+                                        color: Color(0xFF2C2C2C),
+                                        fontSize: 12)),
+                              ])),
+                          IconButton(
+                              tooltip: 'Stop and send voice message',
+                              onPressed: onStopRecord,
+                              icon: const Icon(Icons.send_rounded,
+                                  color: Color(0xFFFF7A00))),
+                        ]),
+                      )
+                    : TextField(
+                        controller: controller,
+                        style: const TextStyle(color: Color(0xFF2C2C2C)),
+                        maxLines: 4,
+                        minLines: 1,
+                        onChanged: onChanged,
+                        onTap: onHideEmoji,
+                        textInputAction: TextInputAction.newline,
+                        decoration: InputDecoration(
+                          hintText: 'Message...',
+                          hintStyle: const TextStyle(color: Colors.black38),
+                          filled: true,
+                          fillColor: const Color(0xFFF8F9FA),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(26),
+                            borderSide: BorderSide(color: Colors.grey[200]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(26),
+                            borderSide: BorderSide(color: Colors.grey[200]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(26),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFFF7A00)),
+                          ),
+                        ),
+                      ),
               ),
-              IconButton(
-                icon: const Icon(Icons.attach_file, color: Colors.black54),
-                onPressed: onPickFile,
+              const SizedBox(width: 4),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: controller,
+                builder: (_, val, __) {
+                  if (val.text.isNotEmpty) {
+                    return _circleBtn(
+                      icon: Icons.send_rounded,
+                      color: const Color(0xFFFF7A00),
+                      onTap: onSend,
+                    );
+                  }
+                  return GestureDetector(
+                    onTap: onStartRecord,
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF7A00),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.mic,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
-            Expanded(
-              child: isRecording
-                  ? Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent,
-                        borderRadius: BorderRadius.circular(26),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.mic, color: Colors.white, size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Recording $_formatTime',
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    )
-                  : TextField(
-                      controller: controller,
-                      style: const TextStyle(color: Color(0xFF2C2C2C)),
-                      maxLines: 4,
-                      minLines: 1,
-                      onChanged: onChanged,
-                      textInputAction: TextInputAction.newline,
-                      decoration: InputDecoration(
-                        hintText: 'Message...',
-                        hintStyle: const TextStyle(color: Colors.black38),
-                        filled: true,
-                        fillColor: const Color(0xFFF8F9FA),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(26),
-                          borderSide: BorderSide(color: Colors.grey[200]!),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(26),
-                          borderSide: BorderSide(color: Colors.grey[200]!),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(26),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFFF7A00)),
-                        ),
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 4),
-            ValueListenableBuilder<TextEditingValue>(
-              valueListenable: controller,
-              builder: (_, val, __) {
-                if (val.text.isNotEmpty) {
-                  return _circleBtn(
-                    icon: Icons.send_rounded,
-                    color: const Color(0xFFFF7A00),
-                    onTap: onSend,
-                  );
-                }
-                return GestureDetector(
-                  onLongPressStart: (_) => onStartRecord(),
-                  onLongPressEnd: (_) => onStopRecord(),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: isRecording
-                          ? Colors.redAccent
-                          : const Color(0xFFFF7A00),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isRecording ? Icons.stop : Icons.mic,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
+          ),
+        ]),
       ),
     );
   }
@@ -1077,4 +1210,46 @@ class _InputBar extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RecordingWaveform extends StatefulWidget {
+  final bool paused;
+  const _RecordingWaveform({required this.paused});
+  @override
+  State<_RecordingWaveform> createState() => _RecordingWaveformState();
+}
+
+class _RecordingWaveformState extends State<_RecordingWaveform>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 650))
+    ..repeat();
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+      height: 24,
+      child: AnimatedBuilder(
+          animation: _controller,
+          builder: (_, __) => Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(22, (i) {
+                final wave =
+                    math.sin((_controller.value * math.pi * 2) + i * .72).abs();
+                final height =
+                    widget.paused ? 4.0 : 4 + wave * (5 + (i % 4) * 3);
+                return Container(
+                    width: 3,
+                    height: height,
+                    margin: const EdgeInsets.symmetric(horizontal: 1),
+                    decoration: BoxDecoration(
+                        color: widget.paused
+                            ? Colors.grey
+                            : const Color(0xFFFF7A00),
+                        borderRadius: BorderRadius.circular(3)));
+              }))));
 }

@@ -74,6 +74,7 @@ class MessageModel {
   final DateTime? pinnedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isSending;
 
   const MessageModel({
     required this.id,
@@ -91,6 +92,7 @@ class MessageModel {
     this.pinnedAt,
     required this.createdAt,
     required this.updatedAt,
+    this.isSending = false,
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
@@ -128,6 +130,7 @@ class MessageModel {
           DateTime.now(),
       updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? '') ??
           DateTime.now(),
+      isSending: false,
     );
   }
 
@@ -147,6 +150,7 @@ class MessageModel {
     DateTime? pinnedAt,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? isSending,
   }) {
     return MessageModel(
       id: id ?? this.id,
@@ -164,6 +168,7 @@ class MessageModel {
       pinnedAt: pinnedAt ?? this.pinnedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isSending: isSending ?? this.isSending,
     );
   }
 }

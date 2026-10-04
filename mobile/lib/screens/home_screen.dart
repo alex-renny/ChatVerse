@@ -6,6 +6,9 @@ import '../providers/chat_provider.dart';
 import '../models/user_model.dart';
 import '../services/socket_service.dart';
 import '../widgets/user_avatar.dart';
+import '../widgets/password_prompt_dialog.dart';
+import '../widgets/animated_page_route.dart';
+import '../services/api_service.dart';
 import 'chat/chat_screen.dart';
 import 'profile_screen.dart';
 import 'auth/login_screen.dart';
@@ -65,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final users = context.watch<UsersProvider>();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
         child: Column(
           children: [
@@ -87,7 +90,21 @@ class _HomeScreenState extends State<HomeScreen> {
                           : ListView.builder(
                               itemCount: _filteredUsers.length,
                               itemBuilder: (ctx, i) =>
-                                  _UserTile(user: _filteredUsers[i]),
+                                  TweenAnimationBuilder<double>(
+                                key: ValueKey(_filteredUsers[i].id),
+                                tween: Tween(begin: 0, end: 1),
+                                duration: Duration(
+                                    milliseconds: 260 + ((i < 8 ? i : 8) * 35)),
+                                curve: Curves.easeOutCubic,
+                                builder: (_, value, child) => Opacity(
+                                  opacity: value,
+                                  child: Transform.translate(
+                                    offset: Offset(0, (1 - value) * 10),
+                                    child: child,
+                                  ),
+                                ),
+                                child: _UserTile(user: _filteredUsers[i]),
+                              ),
                             ),
                     ),
             ),
@@ -98,8 +115,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader(AuthProvider auth) {
-    return Padding(
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 6),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF0F1F3)),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x08000000), blurRadius: 12, offset: Offset(0, 3)),
+        ],
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -128,8 +155,8 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.more_vert, color: Color(0xFF2C2C2C)),
             onSelected: (val) async {
               if (val == 'profile') {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const ProfileScreen()));
+                Navigator.push(
+                    context, animatedPageRoute(const ProfileScreen()));
               } else if (val == 'search') {
                 setState(() => _showSearch = true);
               } else if (val == 'logout') {
@@ -142,9 +169,30 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             },
             itemBuilder: (ctx) => [
-              const PopupMenuItem(value: 'profile', child: Text('Profile')),
-              const PopupMenuItem(value: 'search', child: Text('Search')),
-              const PopupMenuItem(value: 'logout', child: Text('Logout')),
+              const PopupMenuItem(
+                value: 'profile',
+                child: Row(children: [
+                  Icon(Icons.settings_outlined, size: 19),
+                  SizedBox(width: 10),
+                  Text('Profile & settings')
+                ]),
+              ),
+              const PopupMenuItem(
+                value: 'search',
+                child: Row(children: [
+                  Icon(Icons.search, size: 19),
+                  SizedBox(width: 10),
+                  Text('Search contacts')
+                ]),
+              ),
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(children: [
+                  Icon(Icons.logout, size: 19, color: Colors.redAccent),
+                  SizedBox(width: 10),
+                  Text('Log out', style: TextStyle(color: Colors.redAccent))
+                ]),
+              ),
             ],
           )
         ],
@@ -239,62 +287,137 @@ class _UserTile extends StatelessWidget {
   final UserModel user;
   const _UserTile({required this.user});
 
+  Future<void> _openChat(BuildContext context) async {
+    try {
+      final needsPassword = await ApiService.isChatPasswordEnabled(user.id);
+      if (!context.mounted) return;
+      if (needsPassword) {
+        final password = await showDialog<String>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const PasswordPromptDialog(
+            title: 'Private chat',
+            hint: 'Enter chat password to continue',
+            confirmLabel: 'Unlock chat',
+          ),
+        );
+        if (password == null) return;
+        final unlocked = await ApiService.verifyChatPassword(user.id, password);
+        if (!context.mounted) return;
+        if (!unlocked) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Incorrect password. Chat was not opened.')),
+          );
+          return;
+        }
+      }
+      if (!context.mounted) return;
+      context.read<ChatProvider>().clearConversation();
+      Navigator.push(context, animatedPageRoute(ChatScreen(partner: user)));
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Could not check chat privacy. Please try again.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final onlineIds = context.watch<UsersProvider>().onlineUserIds;
     final isOnline = onlineIds.contains(user.id);
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      tileColor: Colors.white,
-      leading: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          UserAvatar(url: user.profilePic, name: user.name, radius: 24),
-          if (isOnline)
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: Container(
-                width: 14,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => _openChat(context),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFF0F1F3)),
+              boxShadow: const [
+                BoxShadow(
+                    color: Color(0x08000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 3))
+              ],
             ),
-        ],
-      ),
-      title: Text(
-        user.name,
-        style: const TextStyle(
-          color: Color(0xFF2C2C2C),
-          fontWeight: FontWeight.bold,
+            child: Row(children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  UserAvatar(url: user.profilePic, name: user.name, radius: 24),
+                  if (isOnline)
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(
+                      user.name,
+                      style: const TextStyle(
+                        color: Color(0xFF2C2C2C),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Row(children: [
+                      Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                              color: isOnline
+                                  ? Colors.green
+                                  : Colors.grey.shade400,
+                              shape: BoxShape.circle)),
+                      const SizedBox(width: 6),
+                      Flexible(
+                          child: Text(
+                        isOnline ? 'Online' : user.status,
+                        style: TextStyle(
+                          color: isOnline ? Colors.green : Colors.grey,
+                          fontSize: 13,
+                        ),
+                      )),
+                    ]),
+                  ])),
+              IconButton(
+                tooltip: user.isPinned ? 'Unpin chat' : 'Pin chat',
+                icon: Icon(
+                    user.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                    color:
+                        user.isPinned ? const Color(0xFFFF7A00) : Colors.grey),
+                onPressed: () =>
+                    context.read<UsersProvider>().togglePinnedChat(user.id),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: Color(0xFFB0B5BC)),
+            ]),
+          ),
         ),
       ),
-      subtitle: Text(
-        isOnline ? 'Online' : user.status,
-        style: TextStyle(
-          color: isOnline ? Colors.green : Colors.grey,
-          fontSize: 13,
-        ),
-      ),
-      trailing: IconButton(
-        tooltip: user.isPinned ? 'Unpin chat' : 'Pin chat',
-        icon: Icon(user.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-            color: user.isPinned ? const Color(0xFFFF7A00) : Colors.grey),
-        onPressed: () =>
-            context.read<UsersProvider>().togglePinnedChat(user.id),
-      ),
-      onTap: () {
-        context.read<ChatProvider>().clearConversation();
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => ChatScreen(partner: user)),
-        );
-      },
     );
   }
 }

@@ -49,6 +49,27 @@ class ChatVerseApp extends StatelessWidget {
               ),
             ),
           ),
+          popupMenuTheme: PopupMenuThemeData(
+            color: Colors.white,
+            elevation: 10,
+            shadowColor: Color(0x22000000),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(color: Color(0xFFF0F1F3)),
+            ),
+            textStyle: const TextStyle(
+              color: Color(0xFF2C2C2C),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          dialogTheme: DialogThemeData(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+            elevation: 12,
+          ),
           snackBarTheme: const SnackBarThemeData(
             backgroundColor: Color(0xFF2C2C2C),
             contentTextStyle: TextStyle(color: Colors.white),

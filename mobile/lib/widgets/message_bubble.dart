@@ -247,27 +247,48 @@ class _MessageBubbleState extends State<MessageBubble> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
-        onTap: () {
-          // Open image preview logic here if needed
-        },
+        onTap: () => showDialog<void>(
+          context: context,
+          barrierColor: Colors.black87,
+          builder: (context) => Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(12),
+            child: Stack(alignment: Alignment.topRight, children: [
+              InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 5,
+                child: CachedNetworkImage(imageUrl: url, fit: BoxFit.contain),
+              ),
+              IconButton(
+                tooltip: 'Close image',
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, color: Colors.white),
+              ),
+            ]),
+          ),
+        ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: CachedNetworkImage(
-            imageUrl: url,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            placeholder: (_, __) => Container(
-              width: double.infinity,
-              height: 150,
-              color: Colors.grey.shade200,
-              child: const Center(
-                  child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
-            ),
-            errorWidget: (_, __, ___) => Container(
-              width: double.infinity,
-              height: 100,
-              color: Colors.grey.shade200,
-              child: const Icon(Icons.broken_image, color: Colors.grey),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * .38),
+            child: CachedNetworkImage(
+              imageUrl: url,
+              fit: BoxFit.cover,
+              width: 260,
+              placeholder: (_, __) => Container(
+                width: 260,
+                height: 150,
+                color: Colors.grey.shade200,
+                child: const Center(
+                    child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+              ),
+              errorWidget: (_, __, ___) => Container(
+                width: 260,
+                height: 100,
+                color: Colors.grey.shade200,
+                child: const Icon(Icons.broken_image, color: Colors.grey),
+              ),
             ),
           ),
         ),
@@ -322,14 +343,24 @@ class _MessageBubbleState extends State<MessageBubble> {
         children: [
           GestureDetector(
             onTap: () async {
-              if (_playingUrl == att.url && _audioPlayer.playing) {
-                await _audioPlayer.pause();
-              } else {
-                _playingUrl = att.url;
-                await _audioPlayer.setUrl(att.url);
-                await _audioPlayer.play();
+              try {
+                if (_playingUrl == att.url && _audioPlayer.playing) {
+                  await _audioPlayer.pause();
+                } else {
+                  _playingUrl = att.url;
+                  await _audioPlayer.setUrl(att.url);
+                  await _audioPlayer.play();
+                }
+                if (mounted) setState(() {});
+              } catch (error) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text(
+                            'Could not play this voice message. Check your connection and try again.')),
+                  );
+                }
               }
-              if (mounted) setState(() {});
             },
             child: Container(
               width: 40,
