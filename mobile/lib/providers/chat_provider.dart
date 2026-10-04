@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../models/message_model.dart';
-import '../models/user_model.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 
@@ -91,9 +90,9 @@ class ChatProvider extends ChangeNotifier {
     };
 
     socket.onMessagesSeen = (receiverId) {
-      if (receiverId == _currentUserId) {
+      if (receiverId == _currentPartnerId) {
         _messages = _messages
-            .map((m) => m.senderId == _currentUserId
+            .map((m) => m.senderId == _currentUserId && m.receiverId == receiverId
                 ? m.copyWith(seen: true)
                 : m)
             .toList();
@@ -108,15 +107,15 @@ class ChatProvider extends ChangeNotifier {
       _hasMore = true;
       _messages = [];
     }
-    if (!_hasMore && !refresh) return;
+    if (_loading || (!_hasMore && !refresh)) return;
 
     _currentPartnerId = partnerId;
     _loading = true;
     _error = null;
     notifyListeners();
 
-    final result = await ApiService.getMessages(partnerId,
-        limit: _limit, skip: _skip);
+    final result =
+        await ApiService.getMessages(partnerId, limit: _limit, skip: _skip);
 
     _loading = false;
     if (result.containsKey('error')) {
@@ -126,7 +125,15 @@ class ChatProvider extends ChangeNotifier {
     }
 
     final fetched = result['messages'] as List<MessageModel>;
-    _messages = refresh ? fetched : [..._messages, ...fetched];
+    if (refresh) {
+      _messages = fetched;
+    } else {
+      final known = _messages.map((m) => m.id).toSet();
+      _messages = [
+        ..._messages,
+        ...fetched.where((m) => !known.contains(m.id))
+      ];
+    }
     _pinnedMessage = result['pinnedMessage'] as MessageModel?;
 
     if (fetched.length < _limit) _hasMore = false;
@@ -241,7 +248,11 @@ class ChatProvider extends ChangeNotifier {
 
   void markMessagesSeen(String senderId, String receiverId) {
     ApiService.markAsSeen(senderId);
+    _messages = _messages
+        .map((m) => m.senderId == senderId ? m.copyWith(seen: true) : m)
+        .toList();
     SocketService.instance.emitMessagesSeen(senderId, receiverId);
+    notifyListeners();
   }
 
   void clearConversation() {

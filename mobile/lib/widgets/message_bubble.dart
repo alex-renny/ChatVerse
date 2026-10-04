@@ -3,6 +3,7 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:just_audio/just_audio.dart';
 import '../models/message_model.dart';
 
 typedef DeleteCallback = void Function(bool deleteForEveryone);
@@ -37,10 +38,20 @@ class MessageBubble extends StatefulWidget {
 }
 
 class _MessageBubbleState extends State<MessageBubble> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  String? _playingUrl;
   bool _showEmoji = false;
   double _dragExtent = 0;
 
-  bool get _isDeleted => widget.message.text == 'Message unavailable' || widget.message.isDeleted == true; // Fallback check
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  bool get _isDeleted =>
+      widget.message.text == 'Message unavailable' ||
+      widget.message.isDeleted == true; // Fallback check
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +65,8 @@ class _MessageBubbleState extends State<MessageBubble> {
             isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           // Reply preview
-          if (msg.replyTo != null && !_isDeleted) _replyPreview(msg.replyTo!, isMe),
+          if (msg.replyTo != null && !_isDeleted)
+            _replyPreview(msg.replyTo!, isMe),
 
           // Bubble
           Row(
@@ -66,13 +78,12 @@ class _MessageBubbleState extends State<MessageBubble> {
                 child: Container(
                   constraints: BoxConstraints(
                       maxWidth: MediaQuery.of(context).size.width * 0.72),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
                     color: isMe ? const Color(0xFFFF7A00) : Colors.white,
-                    border: isMe
-                        ? null
-                        : Border.all(color: Colors.grey.shade200),
+                    border:
+                        isMe ? null : Border.all(color: Colors.grey.shade200),
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(16),
                       topRight: const Radius.circular(16),
@@ -84,7 +95,9 @@ class _MessageBubbleState extends State<MessageBubble> {
                       ? Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.block, size: 14, color: isMe ? Colors.white70 : Colors.grey),
+                            Icon(Icons.block,
+                                size: 14,
+                                color: isMe ? Colors.white70 : Colors.grey),
                             const SizedBox(width: 6),
                             Text(
                               'Message unavailable',
@@ -212,13 +225,17 @@ class _MessageBubbleState extends State<MessageBubble> {
         borderRadius: BorderRadius.circular(8),
         border: Border(
             left: BorderSide(
-                color: isMe ? Colors.white.withOpacity(0.4) : const Color(0xFFFF7A00),
+                color: isMe
+                    ? Colors.white.withOpacity(0.4)
+                    : const Color(0xFFFF7A00),
                 width: 4)),
       ),
       child: Text(
         reply.text.isNotEmpty ? reply.text : '[Attachment]',
         style: TextStyle(
-            color: isMe ? Colors.white70 : const Color(0xFF2C2C2C).withOpacity(0.7),
+            color: isMe
+                ? Colors.white70
+                : const Color(0xFF2C2C2C).withOpacity(0.7),
             fontSize: 12),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
@@ -304,7 +321,16 @@ class _MessageBubbleState extends State<MessageBubble> {
         mainAxisSize: MainAxisSize.min,
         children: [
           GestureDetector(
-            onTap: () => launchUrl(Uri.parse(att.url)), // Replace with actual audio play
+            onTap: () async {
+              if (_playingUrl == att.url && _audioPlayer.playing) {
+                await _audioPlayer.pause();
+              } else {
+                _playingUrl = att.url;
+                await _audioPlayer.setUrl(att.url);
+                await _audioPlayer.play();
+              }
+              if (mounted) setState(() {});
+            },
             child: Container(
               width: 40,
               height: 40,
@@ -312,8 +338,16 @@ class _MessageBubbleState extends State<MessageBubble> {
                 color: isMe ? Colors.white : const Color(0xFFFF7A00),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.play_arrow,
-                  color: isMe ? const Color(0xFFFF7A00) : Colors.white, size: 24),
+              child: StreamBuilder<PlayerState>(
+                stream: _audioPlayer.playerStateStream,
+                builder: (_, __) => Icon(
+                  _playingUrl == att.url && _audioPlayer.playing
+                      ? Icons.pause
+                      : Icons.play_arrow,
+                  color: isMe ? const Color(0xFFFF7A00) : Colors.white,
+                  size: 24,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -321,7 +355,8 @@ class _MessageBubbleState extends State<MessageBubble> {
             child: Container(
               height: 4,
               decoration: BoxDecoration(
-                color: isMe ? Colors.white.withOpacity(0.3) : Colors.grey.shade300,
+                color:
+                    isMe ? Colors.white.withOpacity(0.3) : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -345,9 +380,13 @@ class _MessageBubbleState extends State<MessageBubble> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: isMe ? Colors.white.withOpacity(0.2) : const Color(0x1AFF7A00),
+              color: isMe
+                  ? Colors.white.withOpacity(0.2)
+                  : const Color(0x1AFF7A00),
               border: Border.all(
-                color: isMe ? Colors.white.withOpacity(0.3) : const Color(0x4DFF7A00),
+                color: isMe
+                    ? Colors.white.withOpacity(0.3)
+                    : const Color(0x4DFF7A00),
                 width: 1,
               ),
               borderRadius: BorderRadius.circular(20),
@@ -403,8 +442,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                   widget.onPin();
                 }),
               if (widget.isMe)
-                _optionTile(Icons.delete_forever, 'Delete for Everyone',
-                    () {
+                _optionTile(Icons.delete_forever, 'Delete for Everyone', () {
                   Navigator.pop(context);
                   widget.onDelete(true);
                 }, color: Colors.red),
@@ -434,5 +472,6 @@ class _MessageBubbleState extends State<MessageBubble> {
 }
 
 extension on MessageModel {
-  bool get isDeleted => false; // Dummy extension property to avoid compilation errors if it doesn't exist
+  bool get isDeleted =>
+      false; // Dummy extension property to avoid compilation errors if it doesn't exist
 }

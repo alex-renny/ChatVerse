@@ -1,5 +1,3 @@
-import 'user_model.dart';
-
 class ReactionModel {
   final String userId;
   final String emoji;
@@ -111,8 +109,7 @@ class MessageModel {
       text: json['text']?.toString() ?? '',
       image: json['image']?.toString() ?? '',
       attachment: json['attachment'] != null
-          ? AttachmentModel.fromJson(
-              json['attachment'] as Map<String, dynamic>)
+          ? AttachmentModel.fromJson(json['attachment'] as Map<String, dynamic>)
           : null,
       replyTo: json['replyTo'] != null && json['replyTo'] is Map
           ? MessageModel.fromJson(json['replyTo'] as Map<String, dynamic>)

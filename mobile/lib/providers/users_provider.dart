@@ -41,4 +41,15 @@ class UsersProvider extends ChangeNotifier {
     final extras = _allUsers.where((u) => !convIds.contains(u.id)).toList();
     return [..._conversationUsers, ...extras];
   }
+
+  Future<void> togglePinnedChat(String userId) async {
+    final ok = await ApiService.togglePinnedChat(userId);
+    if (!ok) return;
+    UserModel update(UserModel user) =>
+        user.id == userId ? user.copyWith(isPinned: !user.isPinned) : user;
+    _conversationUsers = _conversationUsers.map(update).toList()
+      ..sort((a, b) => (b.isPinned ? 1 : 0).compareTo(a.isPinned ? 1 : 0));
+    _allUsers = _allUsers.map(update).toList();
+    notifyListeners();
+  }
 }

@@ -51,8 +51,8 @@ class SocketService {
 
     _socket!.on('receiveMessage', (data) {
       try {
-        final msg = MessageModel.fromJson(
-            Map<String, dynamic>.from(data as Map));
+        final msg =
+            MessageModel.fromJson(Map<String, dynamic>.from(data as Map));
         onReceiveMessage?.call(msg);
       } catch (e) {
         debugPrint('Socket receiveMessage parse error: $e');
@@ -66,8 +66,8 @@ class SocketService {
 
     _socket!.on('messageUpdated', (data) {
       try {
-        final msg = MessageModel.fromJson(
-            Map<String, dynamic>.from(data as Map));
+        final msg =
+            MessageModel.fromJson(Map<String, dynamic>.from(data as Map));
         onMessageUpdated?.call(msg);
       } catch (e) {
         debugPrint('Socket messageUpdated parse error: $e');
@@ -76,8 +76,8 @@ class SocketService {
 
     _socket!.on('messageReaction', (data) {
       try {
-        final msg = MessageModel.fromJson(
-            Map<String, dynamic>.from(data as Map));
+        final msg =
+            MessageModel.fromJson(Map<String, dynamic>.from(data as Map));
         onMessageReaction?.call(msg);
       } catch (e) {
         debugPrint('Socket messageReaction parse error: $e');
@@ -110,11 +110,13 @@ class SocketService {
   }
 
   void emitStopTyping(String senderId, String receiverId) {
-    _socket?.emit('stopTyping', {'senderId': senderId, 'receiverId': receiverId});
+    _socket
+        ?.emit('stopTyping', {'senderId': senderId, 'receiverId': receiverId});
   }
 
   void emitMessagesSeen(String senderId, String receiverId) {
-    _socket?.emit('messagesSeen', {'senderId': senderId, 'receiverId': receiverId});
+    _socket?.emit(
+        'messagesSeen', {'senderId': senderId, 'receiverId': receiverId});
   }
 
   void disconnect() {

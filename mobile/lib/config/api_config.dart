@@ -1,12 +1,15 @@
 /// Central API configuration for ChatVerse mobile.
-/// Change [baseUrl] to your deployed server URL for production builds.
+/// Override with --dart-define=API_BASE_URL=http://10.0.2.2:5000 for emulator.
 class ApiConfig {
   ApiConfig._();
 
   /// The base URL of the ChatVerse backend server.
   /// For local development: "http://10.0.2.2:5000" (Android emulator → localhost)
   /// For production: "https://your-backend.onrender.com" (or wherever it's hosted)
-  static const String baseUrl = 'https://chatverse-api.onrender.com';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://chatverse-server-eoma.onrender.com',
+  );
 
   // ---------- REST endpoints ----------
   static String get register => '$baseUrl/api/auth/register';
@@ -36,6 +39,11 @@ class ApiConfig {
   static String pinChat(String userId) => '$baseUrl/api/users/$userId/pin';
   static String chatBackground(String userId) =>
       '$baseUrl/api/users/$userId/background';
+  static String get chatPassword => '$baseUrl/api/profile/chat-password';
+  static String chatPasswordEnabled(String userId) =>
+      '$baseUrl/api/users/$userId/chat-password-enabled';
+  static String get verifyChatPassword =>
+      '$baseUrl/api/users/verify-chat-password';
 
   // ---------- Socket ----------
   static String get socketUrl => baseUrl;

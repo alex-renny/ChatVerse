@@ -74,7 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: users.loading
                   ? const Center(
-                      child: CircularProgressIndicator(color: Color(0xFFFF7A00)))
+                      child:
+                          CircularProgressIndicator(color: Color(0xFFFF7A00)))
                   : RefreshIndicator(
                       color: const Color(0xFFFF7A00),
                       onRefresh: () async {
@@ -125,14 +126,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Color(0xFF2C2C2C)),
-            onSelected: (val) {
+            onSelected: (val) async {
               if (val == 'profile') {
-                Navigator.push(
-                    context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()));
               } else if (val == 'search') {
                 setState(() => _showSearch = true);
               } else if (val == 'logout') {
-                context.read<AuthProvider>().logout();
+                await context.read<AuthProvider>().logout();
+                if (!mounted) return;
                 Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -195,8 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Icon(Icons.search, color: Colors.grey, size: 20),
               SizedBox(width: 8),
-              Text('Search contacts...',
-                  style: TextStyle(color: Colors.grey)),
+              Text('Search contacts...', style: TextStyle(color: Colors.grey)),
             ],
           ),
         ),
@@ -279,6 +280,13 @@ class _UserTile extends StatelessWidget {
           color: isOnline ? Colors.green : Colors.grey,
           fontSize: 13,
         ),
+      ),
+      trailing: IconButton(
+        tooltip: user.isPinned ? 'Unpin chat' : 'Pin chat',
+        icon: Icon(user.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+            color: user.isPinned ? const Color(0xFFFF7A00) : Colors.grey),
+        onPressed: () =>
+            context.read<UsersProvider>().togglePinnedChat(user.id),
       ),
       onTap: () {
         context.read<ChatProvider>().clearConversation();

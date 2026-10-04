@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../models/user_model.dart';
+import '../services/api_service.dart';
 import '../widgets/user_avatar.dart';
+import '../widgets/password_prompt_dialog.dart';
 import 'auth/login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -20,6 +23,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   File? _selectedImage;
   bool _editing = false;
   bool _saving = false;
+  bool _chatPasswordEnabled = false;
+  List<UserModel> _chatAccessUsers = [];
+  bool _loadingChatAccess = true;
 
   @override
   void initState() {
@@ -28,6 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _nameCtrl = TextEditingController(text: user.name);
     _bioCtrl = TextEditingController(text: user.bio);
     _statusCtrl = TextEditingController(text: user.status);
+    _loadChatPrivacyStatus();
   }
 
   @override
@@ -48,13 +55,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _save() async {
     setState(() => _saving = true);
     final auth = context.read<AuthProvider>();
-    await auth.updateProfile(
+    final success = await auth.updateProfile(
       name: _nameCtrl.text.trim(),
       bio: _bioCtrl.text.trim(),
       status: _statusCtrl.text.trim(),
       profilePicFile: _selectedImage,
     );
-    if (mounted) {
+    if (mounted && success) {
       setState(() {
         _saving = false;
         _editing = false;
@@ -63,8 +70,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Profile updated!'),
-          backgroundColor: Colors.green,
+          backgroundColor: Color(0xFF237A45),
+          duration: Duration(seconds: 3),
         ),
+      );
+    } else if (mounted) {
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Profile update failed. Check your connection and try again.'),
+            backgroundColor: Color(0xFF9B2525)),
       );
     }
   }
@@ -211,6 +227,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _editField('Bio', _bioCtrl, maxLines: 3),
             ],
             const SizedBox(height: 40),
+
+            // The web app's chat password protects the owner's incoming chats.
+            Card(
+              color: Colors.white,
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.lock_outline,
+                        color: Color(0xFFFF7A00)),
+                    title: const Text('Chat privacy password'),
+                    subtitle: Text(_chatPasswordEnabled
+                        ? 'Other accounts need this password to open your chats'
+                        : 'Require a password before others can open your chats'),
+                    trailing: Switch(
+                      value: _chatPasswordEnabled,
+                      activeThumbColor: const Color(0xFFFF7A00),
+                      onChanged: (_) => _changeChatPassword(),
+                    ),
+                    onTap: _changeChatPassword,
+                  ),
+                  if (_chatPasswordEnabled) ...[
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                      child: Row(children: [
+                        const Expanded(
+                            child: Text('Accounts allowed to open your chats',
+                                style: TextStyle(fontWeight: FontWeight.w600))),
+                        if (!_loadingChatAccess)
+                          Text('${_chatAccessUsers.length}'),
+                      ]),
+                    ),
+                    if (_loadingChatAccess)
+                      const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator())
+                    else if (_chatAccessUsers.isEmpty)
+                      const Padding(
+                          padding: EdgeInsets.fromLTRB(16, 4, 16, 16),
+                          child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                  'No other accounts have unlocked your chats yet.',
+                                  style: TextStyle(color: Colors.grey))))
+                    else
+                      ..._chatAccessUsers.map((allowedUser) => ListTile(
+                            leading: UserAvatar(
+                                url: allowedUser.profilePic,
+                                name: allowedUser.name,
+                                radius: 18),
+                            title: Text(allowedUser.name),
+                            subtitle: Text(allowedUser.email),
+                            trailing: IconButton(
+                              tooltip: 'Remove access',
+                              icon: const Icon(Icons.person_remove_outlined,
+                                  color: Colors.red),
+                              onPressed: () => _revokeChatAccess(allowedUser),
+                            ),
+                          )),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             const Divider(color: Colors.black12),
             const SizedBox(height: 24),
 
@@ -262,8 +342,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: double.infinity,
               height: 52,
               child: OutlinedButton.icon(
-                onPressed: () {
-                  auth.logout();
+                onPressed: () async {
+                  await auth.logout();
+                  if (!mounted) return;
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -293,6 +374,113 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _changeChatPassword() async {
+    if (_chatPasswordEnabled) {
+      final remove = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Remove chat password?'),
+          content: const Text(
+              'Anyone with access to your account can open your chats.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Remove')),
+          ],
+        ),
+      );
+      if (remove == true) {
+        final removed = await ApiService.removeChatPassword();
+        if (!mounted) return;
+        if (removed) {
+          setState(() {
+            _chatPasswordEnabled = false;
+            _chatAccessUsers = [];
+          });
+          _showProfileMessage('Chat password removed.');
+        } else {
+          _showProfileMessage('Could not remove the chat password.',
+              error: true);
+        }
+      }
+      return;
+    }
+    final password = await showDialog<String>(
+      context: context,
+      builder: (_) => const PasswordPromptDialog(
+        title: 'Set chat password',
+        hint: 'At least 4 characters',
+        confirmLabel: 'Save',
+      ),
+    );
+    if (password == null) return;
+    final saved = await ApiService.setChatPassword(password);
+    if (saved && mounted) {
+      await _loadChatPrivacyStatus();
+      if (mounted) _showProfileMessage('Chat password enabled.');
+    } else if (mounted) {
+      _showProfileMessage('Password must be at least 4 characters.',
+          error: true);
+    }
+  }
+
+  Future<void> _loadChatPrivacyStatus() async {
+    try {
+      final status = await ApiService.getChatPasswordStatus();
+      if (!mounted) return;
+      setState(() {
+        _chatPasswordEnabled = status['enabled'] as bool;
+        _chatAccessUsers = status['users'] as List<UserModel>;
+        _loadingChatAccess = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingChatAccess = false);
+    }
+  }
+
+  Future<void> _revokeChatAccess(UserModel user) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove chat access?'),
+        content: Text(
+            '${user.name} will need the password again to open your chats.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Remove')),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    final removed = await ApiService.removeChatAccess(user.id);
+    if (!mounted) return;
+    if (removed) {
+      setState(
+          () => _chatAccessUsers.removeWhere((item) => item.id == user.id));
+      _showProfileMessage('Access removed for ${user.name}.');
+    } else {
+      _showProfileMessage('Could not remove access. Try again.', error: true);
+    }
+  }
+
+  void _showProfileMessage(String message, {bool error = false}) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(message),
+        backgroundColor:
+            error ? const Color(0xFF9B2525) : const Color(0xFF237A45),
+        duration: const Duration(seconds: 3),
+      ));
+  }
+
   Widget _editField(String label, TextEditingController ctrl,
       {int maxLines = 1}) {
     return Column(
@@ -318,7 +506,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade200, width: 1), // border gray-200
+              borderSide: BorderSide(
+                  color: Colors.grey.shade200, width: 1), // border gray-200
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -326,7 +515,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFFF7A00), width: 1.5), // focus border #FF7A00
+              borderSide: const BorderSide(
+                  color: Color(0xFFFF7A00), width: 1.5), // focus border #FF7A00
             ),
           ),
         ),

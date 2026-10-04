@@ -12,9 +12,11 @@ import '../../models/message_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/users_provider.dart';
+import '../../services/api_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../widgets/message_bubble.dart';
 import '../../widgets/user_avatar.dart';
-import '../../widgets/pinned_message_bar.dart';
+import '../../widgets/password_prompt_dialog.dart';
 
 class ChatScreen extends StatefulWidget {
   final UserModel partner;
@@ -32,6 +34,18 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _recordPath;
   Timer? _recordTimer;
   int _recordSeconds = 0;
+  bool _locked = false;
+  bool _showSearch = false;
+  String _searchQuery = '';
+  String _background = '';
+  static const _backgrounds = [
+    'https://res.cloudinary.com/nbsbvhdj/image/upload/v1784960807/samples/landscapes/nature-mountains.jpg',
+    'https://res.cloudinary.com/nbsbvhdj/image/upload/v1784960807/samples/landscapes/beach-boat.jpg',
+    'https://res.cloudinary.com/nbsbvhdj/image/upload/v1784960807/samples/animals/cat.jpg',
+    'https://res.cloudinary.com/nbsbvhdj/image/upload/v1784960807/samples/food/dessert.jpg',
+    'https://res.cloudinary.com/nbsbvhdj/image/upload/v1784960807/samples/people/jazz.jpg',
+    'https://res.cloudinary.com/nbsbvhdj/image/upload/v1784960807/samples/balloons.jpg',
+  ];
 
   @override
   void initState() {
@@ -40,13 +54,74 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollCtrl.addListener(_onScroll);
   }
 
-  void _load() {
+  Future<void> _load() async {
+    if (await ApiService.isChatPasswordEnabled(widget.partner.id)) {
+      if (mounted) setState(() => _locked = true);
+      return;
+    }
+    await _loadMessages();
+  }
+
+  Future<void> _loadMessages() async {
     final auth = context.read<AuthProvider>();
     final chat = context.read<ChatProvider>();
-    chat.loadMessages(widget.partner.id, refresh: true).then((_) {
-      // Mark messages as seen
-      chat.markMessagesSeen(widget.partner.id, auth.user!.id);
-    });
+    _background = await ApiService.getChatBackground(widget.partner.id);
+    await chat.loadMessages(widget.partner.id, refresh: true);
+    if (chat.error == 'chat_password_required') {
+      if (mounted) setState(() => _locked = true);
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _locked = false);
+    chat.markMessagesSeen(widget.partner.id, auth.user!.id);
+  }
+
+  Future<void> _unlockChat() async {
+    final password = await showDialog<String>(
+      context: context,
+      builder: (_) => const PasswordPromptDialog(
+        title: 'Private chat',
+        hint: 'Enter chat password',
+        confirmLabel: 'Unlock',
+      ),
+    );
+    if (password == null) return;
+    if (await ApiService.verifyChatPassword(widget.partner.id, password)) {
+      await _loadMessages();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Incorrect password')));
+    }
+  }
+
+  Future<void> _chooseBackground() async {
+    final selected = await showModalBottomSheet<String>(
+        context: context,
+        builder: (ctx) => SafeArea(
+                child: SizedBox(
+              height: 300,
+              child: Column(children: [
+                const ListTile(title: Text('Chat background')),
+                Expanded(
+                    child: GridView.count(crossAxisCount: 3, children: [
+                  ..._backgrounds.map((url) => InkWell(
+                      onTap: () => Navigator.pop(ctx, url),
+                      child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: CachedNetworkImage(
+                              imageUrl: url,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) =>
+                                  const Icon(Icons.broken_image))))),
+                  TextButton(
+                      onPressed: () => Navigator.pop(ctx, ''),
+                      child: const Text('Remove')),
+                ])),
+              ]),
+            )));
+    if (selected != null &&
+        await ApiService.saveChatBackground(widget.partner.id, selected) &&
+        mounted) setState(() => _background = selected);
   }
 
   void _onScroll() {
@@ -93,7 +168,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final hasPermission = await _record.hasPermission();
     if (!hasPermission) return;
     final dir = await getTemporaryDirectory();
-    _recordPath = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    _recordPath =
+        '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
     await _record.start(
       RecordConfig(encoder: AudioEncoder.aacLc),
       path: _recordPath!,
@@ -102,8 +178,8 @@ class _ChatScreenState extends State<ChatScreen> {
       _isRecording = true;
       _recordSeconds = 0;
     });
-    _recordTimer = Timer.periodic(const Duration(seconds: 1),
-        (_) => setState(() => _recordSeconds++));
+    _recordTimer = Timer.periodic(
+        const Duration(seconds: 1), (_) => setState(() => _recordSeconds++));
   }
 
   Future<void> _stopRecording() async {
@@ -147,6 +223,12 @@ class _ChatScreenState extends State<ChatScreen> {
     final chat = context.watch<ChatProvider>();
     final users = context.watch<UsersProvider>();
     final isOnline = users.isOnline(widget.partner.id);
+    final visibleMessages = _searchQuery.trim().isEmpty
+        ? chat.messages
+        : chat.messages
+            .where((m) =>
+                m.text.toLowerCase().contains(_searchQuery.toLowerCase()))
+            .toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -228,9 +310,14 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.more_vert, color: Color(0xFF2C2C2C)),
             color: Colors.white,
             onSelected: (v) async {
+              if (v == 'search') setState(() => _showSearch = !_showSearch);
+              if (v == 'background') await _chooseBackground();
+              if (v == 'pinChat')
+                await users.togglePinnedChat(widget.partner.id);
               if (v == 'clear') {
                 final confirm = await _confirmDialog(
                     context, 'Clear Chat', 'Clear all messages for you?');
+                if (!mounted) return;
                 if (confirm == true) {
                   await chat.clearChat(widget.partner.id);
                 }
@@ -239,156 +326,245 @@ class _ChatScreenState extends State<ChatScreen> {
             itemBuilder: (_) => [
               const PopupMenuItem(
                 value: 'search',
-                child: Text('Search', style: TextStyle(color: Color(0xFF2C2C2C))),
+                child:
+                    Text('Search', style: TextStyle(color: Color(0xFF2C2C2C))),
+              ),
+              PopupMenuItem(
+                value: 'pinChat',
+                child: Text(users.sidebarUsers
+                            .where((u) => u.id == widget.partner.id)
+                            .firstOrNull
+                            ?.isPinned ==
+                        true
+                    ? 'Unpin chat'
+                    : 'Pin chat'),
               ),
               const PopupMenuItem(
+                  value: 'background', child: Text('Change background')),
+              const PopupMenuItem(
                 value: 'clear',
-                child: Text('Clear Chat', style: TextStyle(color: Color(0xFF2C2C2C))),
+                child: Text('Clear Chat',
+                    style: TextStyle(color: Color(0xFF2C2C2C))),
               ),
             ],
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Pinned message bar
-          if (chat.pinnedMessage != null)
-            Container(
-              color: const Color(0xFFFFF7ED),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFFFFEDD5))),
-              ),
-              child: Row(
+      body: _locked
+          ? Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.lock_outline,
+                  size: 48, color: Color(0xFFFF7A00)),
+              const SizedBox(height: 12),
+              const Text('This chat is password protected'),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                  onPressed: _unlockChat, child: const Text('Unlock chat')),
+            ]))
+          : Stack(fit: StackFit.expand, children: [
+              if (_background.isNotEmpty)
+                Positioned.fill(
+                    child: CachedNetworkImage(
+                        imageUrl: _background,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => const SizedBox.shrink())),
+              Column(
                 children: [
-                  const Icon(Icons.push_pin, color: Color(0xFFFF7A00), size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Pinned Message',
-                            style: TextStyle(
-                                color: Color(0xFFFF7A00),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600)),
-                        Text(
-                          chat.pinnedMessage!.text.isNotEmpty
-                              ? chat.pinnedMessage!.text
-                              : '[Attachment]',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Color(0xFF2C2C2C), fontSize: 13),
-                        ),
-                      ],
+                  if (_showSearch)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                      child: TextField(
+                        autofocus: true,
+                        decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.search),
+                            hintText: 'Search messages',
+                            suffixIcon: IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () => setState(() {
+                                      _showSearch = false;
+                                      _searchQuery = '';
+                                    })),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12))),
+                        onChanged: (value) =>
+                            setState(() => _searchQuery = value),
+                      ),
                     ),
+                  // Pinned message bar
+                  if (chat.pinnedMessage != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFFF7ED),
+                        border: Border(
+                            bottom: BorderSide(color: Color(0xFFFFEDD5))),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.push_pin,
+                              color: Color(0xFFFF7A00), size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Pinned Message',
+                                    style: TextStyle(
+                                        color: Color(0xFFFF7A00),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600)),
+                                Text(
+                                  chat.pinnedMessage!.text.isNotEmpty
+                                      ? chat.pinnedMessage!.text
+                                      : '[Attachment]',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      color: Color(0xFF2C2C2C), fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close,
+                                color: Colors.black38, size: 16),
+                            onPressed: () =>
+                                chat.unpinMessage(chat.pinnedMessage!.id),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Messages list
+                  Expanded(
+                    child: chat.loading && chat.messages.isEmpty
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                                color: Color(0xFFFF7A00)))
+                        : visibleMessages.isEmpty
+                            ? _buildEmptyState()
+                            : ListView.builder(
+                                controller: _scrollCtrl,
+                                reverse: true,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                itemCount: visibleMessages.length +
+                                    (_searchQuery.isEmpty && chat.hasMore
+                                        ? 1
+                                        : 0) +
+                                    (chat.partnerIsTyping ? 1 : 0),
+                                itemBuilder: (ctx, i) {
+                                  if (chat.partnerIsTyping && i == 0) {
+                                    return _TypingIndicator();
+                                  }
+                                  final msgIndex =
+                                      chat.partnerIsTyping ? i - 1 : i;
+                                  if (msgIndex == visibleMessages.length) {
+                                    return const Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Center(
+                                        child: SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Color(0xFFFF7A00)),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  final msg = visibleMessages[msgIndex];
+
+                                  // Apply new design for text messages
+                                  if (msg.text.isNotEmpty) {
+                                    return _animateMessage(
+                                        msg.id,
+                                        _NewMessageBubble(
+                                          message: msg,
+                                          isMe: msg.senderId == auth.user!.id,
+                                          onReply: () =>
+                                              chat.setReplyingTo(msg),
+                                          onDelete: (everywhere) =>
+                                              chat.deleteMessage(msg.id,
+                                                  deleteForEveryone:
+                                                      everywhere),
+                                          onReact: (emoji) => chat
+                                              .reactToMessage(msg.id, emoji),
+                                          onPin: () => chat.pinMessage(msg.id),
+                                          onUnpin: () =>
+                                              chat.unpinMessage(msg.id),
+                                          isPinned:
+                                              chat.pinnedMessage?.id == msg.id,
+                                        ));
+                                  }
+
+                                  // Fallback for rich attachments
+                                  return _animateMessage(
+                                      msg.id,
+                                      MessageBubble(
+                                        message: msg,
+                                        isMe: msg.senderId == auth.user!.id,
+                                        currentUserId: auth.user!.id,
+                                        onReply: () => chat.setReplyingTo(msg),
+                                        onDelete: (everywhere) =>
+                                            chat.deleteMessage(msg.id,
+                                                deleteForEveryone: everywhere),
+                                        onReact: (emoji) =>
+                                            chat.reactToMessage(msg.id, emoji),
+                                        onPin: () => chat.pinMessage(msg.id),
+                                        onUnpin: () =>
+                                            chat.unpinMessage(msg.id),
+                                        isPinned:
+                                            chat.pinnedMessage?.id == msg.id,
+                                      ));
+                                },
+                              ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.black38, size: 16),
-                    onPressed: () => chat.unpinMessage(chat.pinnedMessage!.id),
+
+                  // Reply preview
+                  if (chat.replyingTo != null)
+                    _ReplyPreview(
+                      message: chat.replyingTo!,
+                      onCancel: () => chat.setReplyingTo(null),
+                    ),
+
+                  // Input bar
+                  _InputBar(
+                    controller: _textCtrl,
+                    isRecording: _isRecording,
+                    recordSeconds: _recordSeconds,
+                    onSend: _sendText,
+                    onPickImage: _pickImage,
+                    onPickFile: _pickFile,
+                    onStartRecord: _startRecording,
+                    onStopRecord: _stopRecording,
+                    onChanged: (v) => chat.onInputChanged(
+                        v, auth.user!.id, widget.partner.id),
                   ),
+                  if (chat.sending)
+                    const LinearProgressIndicator(
+                        minHeight: 2, color: Color(0xFFFF7A00)),
                 ],
               ),
-            ),
-
-          // Messages list
-          Expanded(
-            child: chat.loading && chat.messages.isEmpty
-                ? const Center(
-                    child: CircularProgressIndicator(color: Color(0xFFFF7A00)))
-                : chat.messages.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        controller: _scrollCtrl,
-                        reverse: true,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        itemCount: chat.messages.length +
-                            (chat.hasMore ? 1 : 0) +
-                            (chat.partnerIsTyping ? 1 : 0),
-                        itemBuilder: (ctx, i) {
-                          if (chat.partnerIsTyping && i == 0) {
-                            return _TypingIndicator();
-                          }
-                          final msgIndex =
-                              chat.partnerIsTyping ? i - 1 : i;
-                          if (msgIndex == chat.messages.length) {
-                            return const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: Center(
-                                child: SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Color(0xFFFF7A00)),
-                                ),
-                              ),
-                            );
-                          }
-                          final msg = chat.messages[msgIndex];
-
-                          // Apply new design for text messages
-                          if (msg.text.isNotEmpty) {
-                            return _NewMessageBubble(
-                              message: msg,
-                              isMe: msg.senderId == auth.user!.id,
-                              onReply: () => chat.setReplyingTo(msg),
-                              onDelete: (everywhere) => chat.deleteMessage(
-                                  msg.id,
-                                  deleteForEveryone: everywhere),
-                              onReact: (emoji) =>
-                                  chat.reactToMessage(msg.id, emoji),
-                              onPin: () => chat.pinMessage(msg.id),
-                              onUnpin: () => chat.unpinMessage(msg.id),
-                              isPinned: chat.pinnedMessage?.id == msg.id,
-                            );
-                          }
-
-                          // Fallback for rich attachments
-                          return MessageBubble(
-                            message: msg,
-                            isMe: msg.senderId == auth.user!.id,
-                            currentUserId: auth.user!.id,
-                            onReply: () => chat.setReplyingTo(msg),
-                            onDelete: (everywhere) =>
-                                chat.deleteMessage(msg.id,
-                                    deleteForEveryone: everywhere),
-                            onReact: (emoji) =>
-                                chat.reactToMessage(msg.id, emoji),
-                            onPin: () => chat.pinMessage(msg.id),
-                            onUnpin: () => chat.unpinMessage(msg.id),
-                            isPinned: chat.pinnedMessage?.id == msg.id,
-                          );
-                        },
-                      ),
-          ),
-
-          // Reply preview
-          if (chat.replyingTo != null)
-            _ReplyPreview(
-              message: chat.replyingTo!,
-              onCancel: () => chat.setReplyingTo(null),
-            ),
-
-          // Input bar
-          _InputBar(
-            controller: _textCtrl,
-            isRecording: _isRecording,
-            recordSeconds: _recordSeconds,
-            onSend: _sendText,
-            onPickImage: _pickImage,
-            onPickFile: _pickFile,
-            onStartRecord: _startRecording,
-            onStopRecord: _stopRecording,
-            onChanged: (v) => chat.onInputChanged(
-                v, auth.user!.id, widget.partner.id),
-          ),
-        ],
-      ),
+            ]),
     );
   }
+
+  Widget _animateMessage(String id, Widget child) =>
+      TweenAnimationBuilder<double>(
+        key: ValueKey(id),
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 220),
+        builder: (_, value, child) => Opacity(
+          opacity: value,
+          child: Transform.translate(
+              offset: Offset(0, (1 - value) * 10), child: child),
+        ),
+        child: child,
+      );
 
   Future<bool?> _confirmDialog(
       BuildContext context, String title, String message) {
@@ -397,7 +573,8 @@ class _ChatScreenState extends State<ChatScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         title: Text(title, style: const TextStyle(color: Color(0xFF2C2C2C))),
-        content: Text(message, style: const TextStyle(color: Color(0xFF6B7280))),
+        content:
+            Text(message, style: const TextStyle(color: Color(0xFF6B7280))),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -429,7 +606,8 @@ class _TypingIndicatorState extends State<_TypingIndicator>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+        vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat();
   }
 
   @override
@@ -488,7 +666,7 @@ class _TypingIndicatorState extends State<_TypingIndicator>
 
 // ── New Message Bubble ────────────────────────────────────────────────────────
 class _NewMessageBubble extends StatelessWidget {
-  final dynamic message; 
+  final MessageModel message;
   final bool isMe;
   final VoidCallback onReply;
   final Function(bool) onDelete;
@@ -513,7 +691,7 @@ class _NewMessageBubble extends StatelessWidget {
     final bg = isMe ? const Color(0xFFFF7A00) : Colors.white;
     final textColor = isMe ? Colors.white : const Color(0xFF2C2C2C);
     final border = isMe ? null : Border.all(color: const Color(0xFFF3F4F6));
-    
+
     final radius = BorderRadius.only(
       topLeft: const Radius.circular(16),
       topRight: const Radius.circular(16),
@@ -523,16 +701,12 @@ class _NewMessageBubble extends StatelessWidget {
 
     String timeStr = '';
     try {
-      if (message.createdAt != null) {
-        final d = message.createdAt as DateTime;
-        timeStr = '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-      }
+      final d = message.createdAt;
+      timeStr =
+          '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
     } catch (_) {}
 
-    bool hasReply = false;
-    try {
-      hasReply = message.replyTo != null;
-    } catch (_) {}
+    final hasReply = message.replyTo != null;
 
     return GestureDetector(
       onLongPress: () {
@@ -548,18 +722,68 @@ class _NewMessageBubble extends StatelessWidget {
               children: [
                 ListTile(
                   leading: const Icon(Icons.reply, color: Color(0xFF2C2C2C)),
-                  title: const Text('Reply', style: TextStyle(color: Color(0xFF2C2C2C))),
-                  onTap: () { Navigator.pop(context); onReply(); },
+                  title: const Text('Reply',
+                      style: TextStyle(color: Color(0xFF2C2C2C))),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onReply();
+                  },
                 ),
                 ListTile(
-                  leading: Icon(isPinned ? Icons.push_pin_outlined : Icons.push_pin, color: Color(0xFF2C2C2C)),
-                  title: Text(isPinned ? 'Unpin' : 'Pin', style: const TextStyle(color: Color(0xFF2C2C2C))),
-                  onTap: () { Navigator.pop(context); isPinned ? onUnpin() : onPin(); },
+                  leading: const Icon(Icons.emoji_emotions_outlined,
+                      color: Color(0xFF2C2C2C)),
+                  title: const Text('React',
+                      style: TextStyle(color: Color(0xFF2C2C2C))),
+                  onTap: () {
+                    Navigator.pop(context);
+                    showModalBottomSheet<void>(
+                        context: context,
+                        builder: (ctx) => SafeArea(
+                            child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: ['❤️', '😂', '👍', '😮', '😢', '🙏']
+                                    .map((emoji) => TextButton(
+                                        onPressed: () {
+                                          onReact(emoji);
+                                          Navigator.pop(ctx);
+                                        },
+                                        child: Text(emoji,
+                                            style:
+                                                const TextStyle(fontSize: 26))))
+                                    .toList())));
+                  },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text('Delete', style: TextStyle(color: Colors.red)),
-                  onTap: () { Navigator.pop(context); onDelete(true); },
+                  leading: Icon(
+                      isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+                      color: Color(0xFF2C2C2C)),
+                  title: Text(isPinned ? 'Unpin' : 'Pin',
+                      style: const TextStyle(color: Color(0xFF2C2C2C))),
+                  onTap: () {
+                    Navigator.pop(context);
+                    isPinned ? onUnpin() : onPin();
+                  },
+                ),
+                if (isMe)
+                  ListTile(
+                    leading:
+                        const Icon(Icons.delete_forever, color: Colors.red),
+                    title: const Text('Delete for Everyone',
+                        style: TextStyle(color: Colors.red)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onDelete(true);
+                    },
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  title: const Text('Delete for Me',
+                      style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onDelete(false);
+                  },
                 ),
               ],
             ),
@@ -577,7 +801,8 @@ class _NewMessageBubble extends StatelessWidget {
             border: border,
           ),
           child: Column(
-            crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            crossAxisAlignment:
+                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
               if (hasReply) ...[
                 Container(
@@ -587,14 +812,16 @@ class _NewMessageBubble extends StatelessWidget {
                     color: Colors.black.withOpacity(0.05),
                     border: Border(
                       left: BorderSide(
-                        color: isMe ? Colors.white.withOpacity(0.4) : const Color(0xFFFF7A00),
+                        color: isMe
+                            ? Colors.white.withOpacity(0.4)
+                            : const Color(0xFFFF7A00),
                         width: 4,
                       ),
                     ),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    'Replied message', 
+                    'Replied message',
                     style: TextStyle(
                       color: isMe ? Colors.white70 : const Color(0xFF6B7280),
                       fontSize: 12,
@@ -603,9 +830,20 @@ class _NewMessageBubble extends StatelessWidget {
                 ),
               ],
               Text(
-                message.text ?? '',
+                message.text,
                 style: TextStyle(color: textColor, fontSize: 15),
               ),
+              if (message.reactions.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Wrap(
+                      spacing: 4,
+                      children: _groupReactions(message.reactions)
+                          .entries
+                          .map((entry) => Text('${entry.key} ${entry.value}',
+                              style: TextStyle(fontSize: 12, color: textColor)))
+                          .toList()),
+                ),
               const SizedBox(height: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -629,6 +867,14 @@ class _NewMessageBubble extends StatelessWidget {
       ),
     );
   }
+}
+
+Map<String, int> _groupReactions(List<ReactionModel> reactions) {
+  final grouped = <String, int>{};
+  for (final reaction in reactions) {
+    grouped[reaction.emoji] = (grouped[reaction.emoji] ?? 0) + 1;
+  }
+  return grouped;
 }
 
 // ── Reply Preview ─────────────────────────────────────────────────────────────
@@ -702,9 +948,9 @@ class _InputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
+        color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey[200]!)),
       ),
       child: SafeArea(
@@ -713,8 +959,9 @@ class _InputBar extends StatelessWidget {
           children: [
             if (!isRecording) ...[
               IconButton(
-                icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.black54),
-                onPressed: () {}, 
+                icon: const Icon(Icons.emoji_emotions_outlined,
+                    color: Colors.black54),
+                onPressed: () {},
               ),
               IconButton(
                 icon: const Icon(Icons.image_outlined, color: Colors.black54),
@@ -771,7 +1018,8 @@ class _InputBar extends StatelessWidget {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(26),
-                          borderSide: const BorderSide(color: Color(0xFFFF7A00)),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFFF7A00)),
                         ),
                       ),
                     ),

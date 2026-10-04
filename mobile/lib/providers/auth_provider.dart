@@ -70,7 +70,7 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final result = await AuthService.register(
-          name: name, email: email, password: password)
+              name: name, email: email, password: password)
           .timeout(const Duration(seconds: 15));
       _status = AuthStatus.unauthenticated;
       if (result['success'] != true) {
@@ -111,8 +111,8 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void logout() {
-    AuthService.clearSession();
+  Future<void> logout() async {
+    await AuthService.clearSession();
     SocketService.instance.disconnect();
     _user = null;
     _token = null;

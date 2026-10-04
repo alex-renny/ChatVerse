@@ -78,7 +78,8 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
                 child: Container(
                   padding: const EdgeInsets.all(32),
                   decoration: BoxDecoration(
@@ -124,7 +125,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               const SizedBox(height: 8),
                               const Text(
                                 'Welcome back to your inbox',
-                                style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+                                style: TextStyle(
+                                    color: Color(0xFF6B7280), fontSize: 14),
                               ),
                             ],
                           ),
@@ -137,8 +139,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           label: 'EMAIL',
                           hint: 'you@example.com',
                           keyboardType: TextInputType.emailAddress,
-                          validator: (v) =>
-                              v == null || !v.contains('@') ? 'Enter valid email' : null,
+                          validator: (v) => v == null || !v.contains('@')
+                              ? 'Enter valid email'
+                              : null,
                         ),
                         const SizedBox(height: 20),
 
@@ -150,13 +153,17 @@ class _LoginScreenState extends State<LoginScreen> {
                           obscure: _obscure,
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscure ? Icons.visibility_off : Icons.visibility,
+                              _obscure
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
                               color: const Color(0xFF9CA3AF),
                             ),
-                            onPressed: () => setState(() => _obscure = !_obscure),
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
                           ),
-                          validator: (v) =>
-                              v == null || v.length < 6 ? 'Min 6 characters' : null,
+                          validator: (v) => v == null || v.length < 6
+                              ? 'Min 6 characters'
+                              : null,
                         ),
                         const SizedBox(height: 12),
 
@@ -173,7 +180,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             child: const Text(
                               'Forgot password?',
-                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 14),
                             ),
                           ),
                         ),
@@ -189,7 +197,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               backgroundColor: const Color(0xFFFF7A00),
                               foregroundColor: Colors.white,
                               elevation: 4,
-                              shadowColor: const Color(0xFFFF7A00).withOpacity(0.4),
+                              shadowColor:
+                                  const Color(0xFFFF7A00).withOpacity(0.4),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12)),
                             ),
@@ -197,7 +206,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ? const SizedBox(
                                     height: 20,
                                     width: 20,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2),
                                   )
                                 : const Text('Sign In',
                                     style: TextStyle(
@@ -221,7 +231,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: RichText(
                               text: const TextSpan(
                                 text: "Don't have an account? ",
-                                style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+                                style: TextStyle(
+                                    color: Color(0xFF6B7280), fontSize: 14),
                                 children: [
                                   TextSpan(
                                     text: 'Sign Up',
@@ -291,7 +302,8 @@ class _InputField extends StatelessWidget {
             filled: true,
             fillColor: const Color(0xFFF8F9FA),
             suffixIcon: suffixIcon,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1),

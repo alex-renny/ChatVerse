@@ -50,12 +50,15 @@ class ChatVerseApp extends StatelessWidget {
             ),
           ),
           snackBarTheme: const SnackBarThemeData(
-            backgroundColor: Colors.white,
+            backgroundColor: Color(0xFF2C2C2C),
+            contentTextStyle: TextStyle(color: Colors.white),
             elevation: 4,
             behavior: SnackBarBehavior.floating,
           ),
           useMaterial3: true,
         ),
+        scrollBehavior:
+            const MaterialScrollBehavior().copyWith(overscroll: false),
         home: const _Splash(),
       ),
     );
@@ -74,8 +77,7 @@ class _SplashState extends State<_Splash> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _check());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _check());
   }
 
   Future<void> _check() async {
@@ -85,9 +87,8 @@ class _SplashState extends State<_Splash> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => auth.isAuthenticated
-            ? const HomeScreen()
-            : const LoginScreen(),
+        builder: (_) =>
+            auth.isAuthenticated ? const HomeScreen() : const LoginScreen(),
       ),
     );
   }
@@ -100,8 +101,7 @@ class _SplashState extends State<_Splash> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_rounded,
-                size: 72, color: Color(0xFFFF7A00)),
+            Icon(Icons.chat_bubble_rounded, size: 72, color: Color(0xFFFF7A00)),
             SizedBox(height: 20),
             Text(
               'ReSender',

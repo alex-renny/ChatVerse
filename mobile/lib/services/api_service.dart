@@ -46,8 +46,8 @@ class ApiService {
     int limit = 30,
     int skip = 0,
   }) async {
-    final uri = Uri.parse(ApiConfig.messages(receiverId))
-        .replace(queryParameters: {
+    final uri =
+        Uri.parse(ApiConfig.messages(receiverId)).replace(queryParameters: {
       'limit': limit.toString(),
       'skip': skip.toString(),
     });
@@ -58,8 +58,7 @@ class ApiService {
           .map((m) => MessageModel.fromJson(m as Map<String, dynamic>))
           .toList();
       final pinned = data['pinnedMessage'] != null
-          ? MessageModel.fromJson(
-              data['pinnedMessage'] as Map<String, dynamic>)
+          ? MessageModel.fromJson(data['pinnedMessage'] as Map<String, dynamic>)
           : null;
       return {'messages': msgs, 'pinnedMessage': pinned};
     }
@@ -110,7 +109,8 @@ class ApiService {
       ..fields['isVoice'] = isVoice.toString();
     if (text != null && text.isNotEmpty) request.fields['text'] = text;
     if (replyToId != null) request.fields['replyTo'] = replyToId;
-    request.files.add(await http.MultipartFile.fromPath('attachment', file.path));
+    request.files
+        .add(await http.MultipartFile.fromPath('attachment', file.path));
 
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);
@@ -184,6 +184,87 @@ class ApiService {
       Uri.parse(ApiConfig.clearChat(receiverId)),
       headers: await _headers(),
     );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> togglePinnedChat(String userId) async {
+    final response = await http.put(Uri.parse(ApiConfig.pinChat(userId)),
+        headers: await _headers());
+    return response.statusCode == 200;
+  }
+
+  static Future<String> getChatBackground(String userId) async {
+    final response = await http.get(Uri.parse(ApiConfig.chatBackground(userId)),
+        headers: await _headers());
+    if (response.statusCode != 200) return '';
+    return (jsonDecode(response.body) as Map<String, dynamic>)['background']
+            ?.toString() ??
+        '';
+  }
+
+  static Future<bool> saveChatBackground(
+      String userId, String background) async {
+    final response = await http.put(Uri.parse(ApiConfig.chatBackground(userId)),
+        headers: await _headers(),
+        body: jsonEncode({'background': background}));
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> isChatPasswordEnabled(String userId) async {
+    final response = await http.get(
+        Uri.parse(ApiConfig.chatPasswordEnabled(userId)),
+        headers: await _headers());
+    if (response.statusCode != 200) return false;
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return data['enabled'] == true && data['verified'] != true;
+  }
+
+  static Future<bool> chatPasswordEnabledForMe() async {
+    final response = await http.get(Uri.parse(ApiConfig.chatPassword),
+        headers: await _headers());
+    if (response.statusCode != 200) return false;
+    return (jsonDecode(response.body) as Map<String, dynamic>)['enabled'] ==
+        true;
+  }
+
+  static Future<Map<String, dynamic>> getChatPasswordStatus() async {
+    final response = await http.get(Uri.parse(ApiConfig.chatPassword),
+        headers: await _headers());
+    if (response.statusCode != 200) {
+      throw Exception('Unable to load chat access list');
+    }
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final users = (data['verifiedUsers'] as List<dynamic>? ?? [])
+        .whereType<Map>()
+        .map((user) => UserModel.fromJson(Map<String, dynamic>.from(user)))
+        .toList();
+    return {'enabled': data['enabled'] == true, 'users': users};
+  }
+
+  static Future<bool> removeChatAccess(String userId) async {
+    final response = await http.delete(
+      Uri.parse('${ApiConfig.chatPassword}/access/$userId'),
+      headers: await _headers(),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> verifyChatPassword(String userId, String password) async {
+    final response = await http.post(Uri.parse(ApiConfig.verifyChatPassword),
+        headers: await _headers(),
+        body: jsonEncode({'userId': userId, 'password': password}));
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> setChatPassword(String password) async {
+    final response = await http.put(Uri.parse(ApiConfig.chatPassword),
+        headers: await _headers(), body: jsonEncode({'password': password}));
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> removeChatPassword() async {
+    final response = await http.delete(Uri.parse(ApiConfig.chatPassword),
+        headers: await _headers());
     return response.statusCode == 200;
   }
 }

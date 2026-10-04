@@ -83,11 +83,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-          
+
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                 child: Container(
                   padding: const EdgeInsets.all(32),
                   decoration: BoxDecoration(
@@ -143,7 +144,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                         const SizedBox(height: 40),
-                        
+
                         // Inputs
                         _buildInputField(
                           controller: _nameCtrl,
@@ -151,7 +152,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           hint: 'John Doe',
                         ),
                         const SizedBox(height: 20),
-                        
+
                         _buildInputField(
                           controller: _emailCtrl,
                           label: 'EMAIL ADDRESS',
@@ -159,10 +160,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           keyboardType: TextInputType.emailAddress,
                         ),
                         const SizedBox(height: 20),
-                        
+
                         _buildPasswordField(),
                         const SizedBox(height: 32),
-                        
+
                         // Submit button
                         ElevatedButton(
                           onPressed: loading ? null : _submit,
@@ -174,7 +175,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               borderRadius: BorderRadius.circular(16),
                             ),
                             elevation: 8,
-                            shadowColor: const Color(0xFFFF7A00).withOpacity(0.5),
+                            shadowColor:
+                                const Color(0xFFFF7A00).withOpacity(0.5),
                           ),
                           child: loading
                               ? const SizedBox(
@@ -194,17 +196,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                         ),
                         const SizedBox(height: 32),
-                        
+
                         // Footer
                         Row(
                           children: [
-                            const Expanded(child: Divider(color: Color(0xFFEEEEEE))),
+                            const Expanded(
+                                child: Divider(color: Color(0xFFEEEEEE))),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
                               child: GestureDetector(
                                 onTap: () => Navigator.pushReplacement(
                                   context,
-                                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                  MaterialPageRoute(
+                                      builder: (_) => const LoginScreen()),
                                 ),
                                 child: RichText(
                                   text: const TextSpan(
@@ -223,7 +228,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               ),
                             ),
-                            const Expanded(child: Divider(color: Color(0xFFEEEEEE))),
+                            const Expanded(
+                                child: Divider(color: Color(0xFFEEEEEE))),
                           ],
                         ),
                       ],
@@ -275,7 +281,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             hintStyle: TextStyle(color: Colors.grey[400]),
             filled: true,
             fillColor: const Color(0xFFF8F9FA),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide: BorderSide(color: Colors.grey[200]!),
@@ -327,7 +334,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             hintStyle: TextStyle(color: Colors.grey[400]),
             filled: true,
             fillColor: const Color(0xFFF8F9FA),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide: BorderSide(color: Colors.grey[200]!),

@@ -9,6 +9,7 @@ class UserModel {
   final String status;
   final DateTime? lastSeen;
   final bool isOnline;
+  final bool isPinned;
 
   const UserModel({
     required this.id,
@@ -19,6 +20,7 @@ class UserModel {
     this.status = 'Available',
     this.lastSeen,
     this.isOnline = false,
+    this.isPinned = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -33,6 +35,7 @@ class UserModel {
           ? DateTime.tryParse(json['lastSeen'].toString())
           : null,
       isOnline: json['isOnline'] == true,
+      isPinned: json['isPinned'] == true,
     );
   }
 
@@ -45,6 +48,7 @@ class UserModel {
         'status': status,
         'lastSeen': lastSeen?.toIso8601String(),
         'isOnline': isOnline,
+        'isPinned': isPinned,
       };
 
   UserModel copyWith({
@@ -56,6 +60,7 @@ class UserModel {
     String? status,
     DateTime? lastSeen,
     bool? isOnline,
+    bool? isPinned,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -66,6 +71,7 @@ class UserModel {
       status: status ?? this.status,
       lastSeen: lastSeen ?? this.lastSeen,
       isOnline: isOnline ?? this.isOnline,
+      isPinned: isPinned ?? this.isPinned,
     );
   }
 
