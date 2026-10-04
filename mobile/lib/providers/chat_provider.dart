@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../models/message_model.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
+import '../services/mobile_media_store.dart';
 
 class ChatProvider extends ChangeNotifier {
   List<MessageModel> _messages = [];
@@ -201,6 +202,15 @@ class ChatProvider extends ChangeNotifier {
     _sending = false;
     if (msg != null) {
       _messages.insert(0, msg);
+      if (!isVoice) {
+        final sharedUrl =
+            msg.image.isNotEmpty ? msg.image : (msg.attachment?.url ?? '');
+        if (sharedUrl.isNotEmpty) {
+          unawaited(MobileMediaStore.instance
+              .cacheLocalFile(sharedUrl, file, name: msg.attachment?.name)
+              .catchError((_) => file));
+        }
+      }
     }
     notifyListeners();
   }

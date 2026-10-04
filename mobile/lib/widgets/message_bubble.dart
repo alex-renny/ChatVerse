@@ -1,10 +1,13 @@
+import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:open_file/open_file.dart';
 import '../models/message_model.dart';
+import '../services/mobile_media_store.dart';
 
 typedef DeleteCallback = void Function(bool deleteForEveryone);
 typedef ReactCallback = void Function(String emoji);
@@ -39,6 +42,7 @@ class MessageBubble extends StatefulWidget {
 
 class _MessageBubbleState extends State<MessageBubble> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final Map<String, Future<File>> _imageFiles = {};
   String? _playingUrl;
   bool _showEmoji = false;
   double _dragExtent = 0;
@@ -244,64 +248,112 @@ class _MessageBubbleState extends State<MessageBubble> {
   }
 
   Widget _imageContent(String url) {
+    final localFile = _imageFiles.putIfAbsent(
+      url,
+      () => MobileMediaStore.instance.cacheUrl(url),
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: GestureDetector(
-        onTap: () => showDialog<void>(
-          context: context,
-          barrierColor: Colors.black87,
-          builder: (context) => Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.all(12),
-            child: Stack(alignment: Alignment.topRight, children: [
-              InteractiveViewer(
-                minScale: 0.8,
-                maxScale: 5,
-                child: CachedNetworkImage(imageUrl: url, fit: BoxFit.contain),
-              ),
-              IconButton(
-                tooltip: 'Close image',
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close, color: Colors.white),
-              ),
-            ]),
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * .38),
-            child: CachedNetworkImage(
-              imageUrl: url,
-              fit: BoxFit.cover,
-              width: 260,
-              placeholder: (_, __) => Container(
-                width: 260,
-                height: 150,
-                color: Colors.grey.shade200,
-                child: const Center(
-                    child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
-              ),
-              errorWidget: (_, __, ___) => Container(
-                width: 260,
-                height: 100,
-                color: Colors.grey.shade200,
-                child: const Icon(Icons.broken_image, color: Colors.grey),
+      child: FutureBuilder<File>(
+        future: localFile,
+        builder: (context, snapshot) {
+          final image = snapshot.hasData
+              ? Image.file(snapshot.data!, width: 260, fit: BoxFit.cover)
+              : snapshot.hasError
+                  ? CachedNetworkImage(
+                      imageUrl: url,
+                      fit: BoxFit.cover,
+                      width: 260,
+                      placeholder: (_, __) => _imagePlaceholder(),
+                      errorWidget: (_, __, ___) => _imageError(),
+                    )
+                  : _imagePlaceholder();
+          return GestureDetector(
+            onTap: snapshot.hasData
+                ? () => showDialog<void>(
+                      context: context,
+                      barrierColor: Colors.black87,
+                      builder: (dialogContext) => Dialog(
+                        backgroundColor: Colors.transparent,
+                        insetPadding: const EdgeInsets.all(12),
+                        child: Stack(
+                          alignment: Alignment.topRight,
+                          children: [
+                            InteractiveViewer(
+                              minScale: 0.8,
+                              maxScale: 5,
+                              child: Image.file(snapshot.data!,
+                                  fit: BoxFit.contain),
+                            ),
+                            IconButton(
+                              tooltip: 'Close image',
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(),
+                              icon:
+                                  const Icon(Icons.close, color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                : null,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * .38),
+                child: image,
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
+
+  Widget _imagePlaceholder() => Container(
+        width: 260,
+        height: 150,
+        color: Colors.grey.shade200,
+        child: const Center(
+            child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+      );
+
+  Widget _imageError() => Container(
+        width: 260,
+        height: 100,
+        color: Colors.grey.shade200,
+        child: const Icon(Icons.broken_image, color: Colors.grey),
+      );
 
   Widget _attachmentContent(AttachmentModel att, bool isMe) {
     if (att.isImage) return _imageContent(att.url);
     if (att.isVoice) return _voiceContent(att, isMe);
 
     return GestureDetector(
-      onTap: () => launchUrl(Uri.parse(att.url)),
+      onTap: () async {
+        try {
+          final file =
+              await MobileMediaStore.instance.cacheUrl(att.url, name: att.name);
+          final result = await OpenFile.open(file.path);
+          if (result.type != 'done' && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text(result.message.isEmpty
+                      ? 'No app is available to open this file.'
+                      : result.message)),
+            );
+          }
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text(
+                      'Could not download this file. Check your connection and try again.')),
+            );
+          }
+        }
+      },
       child: Container(
         padding: const EdgeInsets.all(10),
         margin: const EdgeInsets.only(bottom: 6),
