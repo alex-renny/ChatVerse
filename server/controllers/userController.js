@@ -8,16 +8,27 @@ export const getConversationUsers = async (req, res) => {
 
     // Find all conversations involving the logged-in user
     const messages = await Message.find({
-      $or: [
-        { sender: userId },
-        { receiver: userId },
-      ],
-    });
+      $or: [{ sender: userId }, { receiver: userId }],
+      deletedFor: { $ne: userId },
+      deletedForEveryone: { $ne: true },
+    })
+      .select("sender receiver text image attachment createdAt seen")
+      .sort({ createdAt: -1 })
+      .lean();
 
     // Get unique user IDs
     const userIds = new Set();
+    const latestByUser = new Map();
+    const unreadByUser = new Map();
 
     messages.forEach((message) => {
+      const peerId = message.sender.toString() === userId.toString()
+        ? message.receiver.toString()
+        : message.sender.toString();
+      if (!latestByUser.has(peerId)) latestByUser.set(peerId, message);
+      if (message.receiver.toString() === userId.toString() && !message.seen) {
+        unreadByUser.set(peerId, (unreadByUser.get(peerId) || 0) + 1);
+      }
       if (message.sender.toString() !== userId.toString()) {
         userIds.add(message.sender.toString());
       }
@@ -33,23 +44,43 @@ export const getConversationUsers = async (req, res) => {
     );
 
     const users = await User.find({ _id: { $in: [...userIds] } })
-      .select("-password -chatPassword")
-      .then((found) => found.filter((user) =>
-        !user.chatPasswordEnabled || user.verifiedUsers.some(
-          (approvedId) => approvedId.toString() === userId.toString()
-        )
-      ));
+      .select("-password -chatPassword");
 
     res.json(
       users
         .map((user) => {
-          const { verifiedUsers: _verifiedUsers, ...safeUser } = user.toObject();
+          const safeUser = user.toObject();
+          const peerId = user._id.toString();
+          const latest = latestByUser.get(peerId);
+          const requiresChatLock = user.chatPasswordEnabled &&
+            !user.verifiedUsers.some((approvedId) => approvedId.toString() === userId.toString());
+          delete safeUser.verifiedUsers;
+          delete safeUser.chatPasswordEnabled;
+          let preview = "";
+          if (latest) {
+            if (requiresChatLock) {
+              preview = "🔒 Private message — unlock to read";
+            } else if (latest.text?.trim()) {
+              preview = latest.text.trim();
+            } else if (latest.image) {
+              preview = "📷 Photo";
+            } else if (latest.attachment?.isVoice) {
+              preview = "🎙 Voice message";
+            } else {
+              preview = latest.attachment?.name ? `📎 ${latest.attachment.name}` : "📎 Attachment";
+            }
+          }
           return {
             ...safeUser,
             isPinned: pinnedChatIds.has(user._id.toString()),
+            lastMessageAt: latest?.createdAt || null,
+            lastMessagePreview: preview,
+            unreadCount: unreadByUser.get(peerId) || 0,
+            requiresChatLock,
           };
         })
-        .sort((a, b) => Number(b.isPinned) - Number(a.isPinned))
+        .sort((a, b) => Number(b.isPinned) - Number(a.isPinned) ||
+          new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0))
     );
 
   } catch (error) {

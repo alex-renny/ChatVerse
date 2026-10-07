@@ -45,7 +45,12 @@ class ChatProvider extends ChangeNotifier {
               msg.receiverId == _currentUserId) ||
           (msg.senderId == _currentUserId &&
               msg.receiverId == _currentPartnerId)) {
-        _messages.insert(0, msg);
+        final existingIndex = _messages.indexWhere((m) => m.id == msg.id);
+        if (existingIndex >= 0) {
+          _messages[existingIndex] = msg;
+        } else {
+          _messages.insert(0, msg);
+        }
         notifyListeners();
       }
     };

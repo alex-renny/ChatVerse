@@ -71,16 +71,48 @@ function Sidebar({ selectedUser, setSelectedUser }) {
     };
   }, []);
 
+  useEffect(() => {
+    const handleConversationActivity = (activity) => {
+      const incoming = activity?.user;
+      if (!incoming?._id) return;
+      const updated = {
+        ...incoming,
+        lastMessageAt: activity.messageAt,
+        lastMessagePreview: activity.lastMessagePreview || "",
+        requiresChatLock: activity.requiresChatLock === true,
+        unreadCount: Number(activity.unreadCount) || 0,
+      };
+      setUsers((current) => {
+        const merged = [updated, ...current.filter((item) => item._id !== incoming._id)];
+        return merged.sort((a, b) => Number(b.isPinned) - Number(a.isPinned) ||
+          new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0));
+      });
+      setAllUsers((current) => current.map((item) =>
+        item._id === incoming._id ? { ...item, ...updated } : item));
+    };
+    socket.on("conversationActivity", handleConversationActivity);
+    return () => socket.off("conversationActivity", handleConversationActivity);
+  }, []);
+
   const filteredUsers =
     search.trim() === ""
       ? users
-      : allUsers.filter((u) => {
-          const matches =
-            u.name.toLowerCase().includes(search.toLowerCase()) ||
-            u.email.toLowerCase().includes(search.toLowerCase());
+      : search.trim().length < 3
+        ? []
+        : allUsers.filter((u) =>
+            u.name.toLowerCase().startsWith(search.trim().toLowerCase()) ||
+            u.email.toLowerCase().startsWith(search.trim().toLowerCase()));
 
-          return matches;
-        });
+  const handleDeleteChat = async (chatUser) => {
+    try {
+      await clearChat(chatUser._id);
+      setUsers((current) => current.filter((item) => item._id !== chatUser._id));
+      if (selectedUser?._id === chatUser._id) setSelectedUser(null);
+    } catch (error) {
+      console.error("Could not delete chat:", error);
+      alert("Could not delete this chat. Please try again.");
+    }
+  };
 
   const handleTogglePin = async (chatUser) => {
     try {
@@ -207,19 +239,22 @@ function Sidebar({ selectedUser, setSelectedUser }) {
             <UserCard
               key={u._id}
               user={u}
+              hasConversation={users.some((item) => item._id === u._id)}
               onSelect={handleSelectUser}
               online={onlineUsers.includes(u._id)}
               onTogglePin={handleTogglePin}
               onDeleteChat={(user) => {
-                console.log("Delete", user);
+                handleDeleteChat(user);
               }}
             />
           ))
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8 text-center">
             <div className="text-4xl mb-3">💬</div>
-            <p className="font-medium text-[#2C2C2C]">No users found</p>
-            <p className="text-sm text-gray-400 mt-1">Try a different search term</p>
+            <p className="font-medium text-[#2C2C2C]">
+              {search.trim().length > 0 && search.trim().length < 3 ? "Type at least 3 letters" : "No users found"}
+            </p>
+            <p className="text-sm text-gray-400 mt-1">Search matches from the beginning of a name or email.</p>
           </div>
         )}
       </div>

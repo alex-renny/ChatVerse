@@ -86,6 +86,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!mounted) return;
     setState(() => _locked = false);
     chat.markMessagesSeen(widget.partner.id, auth.user!.id);
+    context.read<UsersProvider>().markConversationRead(widget.partner.id);
   }
 
   Future<void> _unlockChat() async {

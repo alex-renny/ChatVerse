@@ -44,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
     SocketService.instance.onOnlineUsers = (ids) {
       users.setOnlineUsers(ids);
     };
+    SocketService.instance.onConversationActivity = users.handleConversationActivity;
   }
 
   @override
@@ -105,7 +106,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                     child: child,
                                   ),
                                 ),
-                                child: _UserTile(user: _filteredUsers[i]),
+                                child: _UserTile(
+                                  user: _filteredUsers[i],
+                                  isConversation: users.conversationUsers.any(
+                                      (u) => u.id == _filteredUsers[i].id),
+                                ),
                               ),
                             ),
                     ),
@@ -262,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Text('💬', style: TextStyle(fontSize: 48)),
             SizedBox(height: 16),
             Text(
-              needsMoreLetters ? 'Type at least 3 letters' : 'No users found',
+              needsMoreLetters ? 'Search your friends...' : 'No users found',
               style: TextStyle(
                 color: Color(0xFF2C2C2C),
                 fontSize: 18,
@@ -314,7 +319,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _UserTile extends StatelessWidget {
   final UserModel user;
-  const _UserTile({required this.user});
+  final bool isConversation;
+  const _UserTile({required this.user, required this.isConversation});
+
+  String _recentLabel(DateTime? timestamp) {
+    if (timestamp == null) return '';
+    final local = timestamp.toLocal();
+    final now = DateTime.now();
+    if (local.year == now.year && local.month == now.month && local.day == now.day) {
+      final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+      final minute = local.minute.toString().padLeft(2, '0');
+      return '$hour:$minute ${local.hour >= 12 ? 'PM' : 'AM'}';
+    }
+    return '${local.day}/${local.month}';
+  }
 
   Future<void> _openChat(BuildContext context) async {
     try {
@@ -405,15 +423,40 @@ class _UserTile extends StatelessWidget {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                    Text(
-                      user.name,
-                      style: const TextStyle(
-                        color: Color(0xFF2C2C2C),
-                        fontWeight: FontWeight.bold,
+                    Row(children: [
+                      Expanded(
+                        child: Text(
+                          user.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF2C2C2C),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
+                      if (_recentLabel(user.lastMessageAt).isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Text(_recentLabel(user.lastMessageAt),
+                            style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                      ],
+                    ],
                     ),
                     const SizedBox(height: 3),
-                    Row(children: [
+                    if (user.lastMessagePreview.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        user.lastMessagePreview,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: user.requiresChatLock
+                              ? const Color(0xFFFF7A00)
+                              : Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ] else Row(children: [
                       Container(
                           width: 7,
                           height: 7,
@@ -433,14 +476,47 @@ class _UserTile extends StatelessWidget {
                       )),
                     ]),
                   ])),
-              IconButton(
-                tooltip: user.isPinned ? 'Unpin chat' : 'Pin chat',
-                icon: Icon(
-                    user.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                    color:
-                        user.isPinned ? const Color(0xFFFF7A00) : Colors.grey),
-                onPressed: () =>
-                    context.read<UsersProvider>().togglePinnedChat(user.id),
+              if (user.unreadCount > 0)
+                Container(
+                  constraints: const BoxConstraints(minWidth: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFF7A00), shape: BoxShape.circle),
+                  child: Text('${user.unreadCount}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white, fontSize: 11)),
+                ),
+              PopupMenuButton<String>(
+                tooltip: 'Chat options',
+                onSelected: (value) async {
+                  if (value == 'pin') {
+                    await context.read<UsersProvider>().togglePinnedChat(user.id);
+                  } else if (value == 'delete' && isConversation) {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('Delete chat?'),
+                        content: Text('Delete your message history with ${user.name}? This only removes it from your account.'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+                          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                        ],
+                      ),
+                    );
+                    if (confirm == true && context.mounted) {
+                      final ok = await context.read<UsersProvider>().deleteConversation(user.id);
+                      if (context.mounted && !ok) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Could not delete this chat. Try again.')));
+                      }
+                    }
+                  }
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(value: 'pin', child: Text(user.isPinned ? 'Unpin chat' : 'Pin chat')),
+                  if (isConversation)
+                    const PopupMenuItem(value: 'delete', child: Text('Delete chat', style: TextStyle(color: Colors.red))),
+                ],
               ),
               const Icon(Icons.chevron_right_rounded, color: Color(0xFFB0B5BC)),
             ]),

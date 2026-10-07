@@ -9,6 +9,7 @@ typedef MessageUpdatedCallback = void Function(MessageModel message);
 typedef OnlineUsersCallback = void Function(List<String> userIds);
 typedef TypingCallback = void Function(String senderId);
 typedef SeenCallback = void Function(String receiverId);
+typedef ConversationActivityCallback = void Function(Map<String, dynamic> activity);
 
 class SocketService {
   SocketService._();
@@ -26,6 +27,7 @@ class SocketService {
   TypingCallback? onTyping;
   TypingCallback? onStopTyping;
   SeenCallback? onMessagesSeen;
+  ConversationActivityCallback? onConversationActivity;
 
   void init(String userId, String token) {
     if (_initialized) return;
@@ -56,6 +58,12 @@ class SocketService {
         onReceiveMessage?.call(msg);
       } catch (e) {
         debugPrint('Socket receiveMessage parse error: $e');
+      }
+    });
+
+    _socket!.on('conversationActivity', (data) {
+      if (data is Map) {
+        onConversationActivity?.call(Map<String, dynamic>.from(data));
       }
     });
 

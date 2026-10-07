@@ -37,6 +37,52 @@ class UsersProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void handleConversationActivity(Map<String, dynamic> activity) {
+    final rawUser = activity['user'];
+    if (rawUser is! Map) return;
+    final userJson = Map<String, dynamic>.from(rawUser);
+    userJson['lastMessageAt'] = activity['messageAt'];
+    userJson['lastMessagePreview'] = activity['lastMessagePreview'] ?? '';
+    userJson['requiresChatLock'] = activity['requiresChatLock'] == true;
+    userJson['unreadCount'] = activity['unreadCount'] ?? 0;
+    final incoming = UserModel.fromJson(userJson);
+    if (incoming.id.isEmpty) return;
+
+    UserModel merge(UserModel user) => user.id == incoming.id
+        ? incoming.copyWith(isPinned: user.isPinned)
+        : user;
+    final alreadyInConversations = _conversationUsers.any((u) => u.id == incoming.id);
+    _conversationUsers = [
+      if (!alreadyInConversations) incoming,
+      ..._conversationUsers.map(merge),
+    ]..sort((a, b) {
+        final pinOrder =
+            (b.isPinned ? 1 : 0).compareTo(a.isPinned ? 1 : 0);
+        if (pinOrder != 0) return pinOrder;
+        return (b.lastMessageAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+            .compareTo(a.lastMessageAt ?? DateTime.fromMillisecondsSinceEpoch(0));
+      });
+    _allUsers = _allUsers.map(merge).toList();
+    notifyListeners();
+  }
+
+  Future<bool> deleteConversation(String userId) async {
+    final deleted = await ApiService.clearChat(userId);
+    if (!deleted) return false;
+    _conversationUsers = _conversationUsers.where((u) => u.id != userId).toList();
+    notifyListeners();
+    return true;
+  }
+
+  void markConversationRead(String userId) {
+    UserModel update(UserModel user) => user.id == userId
+        ? user.copyWith(unreadCount: 0)
+        : user;
+    _conversationUsers = _conversationUsers.map(update).toList();
+    _allUsers = _allUsers.map(update).toList();
+    notifyListeners();
+  }
+
   Future<void> fetchUsers() async {
     _beginLoad();
     try {

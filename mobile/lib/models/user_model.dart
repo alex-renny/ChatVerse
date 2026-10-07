@@ -10,6 +10,10 @@ class UserModel {
   final DateTime? lastSeen;
   final bool isOnline;
   final bool isPinned;
+  final DateTime? lastMessageAt;
+  final String lastMessagePreview;
+  final int unreadCount;
+  final bool requiresChatLock;
 
   const UserModel({
     required this.id,
@@ -21,6 +25,10 @@ class UserModel {
     this.lastSeen,
     this.isOnline = false,
     this.isPinned = false,
+    this.lastMessageAt,
+    this.lastMessagePreview = '',
+    this.unreadCount = 0,
+    this.requiresChatLock = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -36,6 +44,12 @@ class UserModel {
           : null,
       isOnline: json['isOnline'] == true,
       isPinned: json['isPinned'] == true,
+      lastMessageAt: json['lastMessageAt'] != null
+          ? DateTime.tryParse(json['lastMessageAt'].toString())
+          : null,
+      lastMessagePreview: json['lastMessagePreview']?.toString() ?? '',
+      unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
+      requiresChatLock: json['requiresChatLock'] == true,
     );
   }
 
@@ -49,6 +63,10 @@ class UserModel {
         'lastSeen': lastSeen?.toIso8601String(),
         'isOnline': isOnline,
         'isPinned': isPinned,
+        'lastMessageAt': lastMessageAt?.toIso8601String(),
+        'lastMessagePreview': lastMessagePreview,
+        'unreadCount': unreadCount,
+        'requiresChatLock': requiresChatLock,
       };
 
   UserModel copyWith({
@@ -61,6 +79,10 @@ class UserModel {
     DateTime? lastSeen,
     bool? isOnline,
     bool? isPinned,
+    DateTime? lastMessageAt,
+    String? lastMessagePreview,
+    int? unreadCount,
+    bool? requiresChatLock,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -72,6 +94,10 @@ class UserModel {
       lastSeen: lastSeen ?? this.lastSeen,
       isOnline: isOnline ?? this.isOnline,
       isPinned: isPinned ?? this.isPinned,
+      lastMessageAt: lastMessageAt ?? this.lastMessageAt,
+      lastMessagePreview: lastMessagePreview ?? this.lastMessagePreview,
+      unreadCount: unreadCount ?? this.unreadCount,
+      requiresChatLock: requiresChatLock ?? this.requiresChatLock,
     );
   }
 

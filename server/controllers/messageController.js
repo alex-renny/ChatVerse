@@ -11,6 +11,11 @@ const canAccessChat = (owner, requesterId) => {
   );
 };
 
+const canReadSenderLockedChat = (sender, requesterId) =>
+  !sender.chatPasswordEnabled || sender.verifiedUsers.some(
+    (id) => id.toString() === requesterId.toString()
+  );
+
 const requesterCanAccessMessage = async (message, requesterId) => {
   const senderId = message.sender.toString();
   const receiverId = message.receiver.toString();
@@ -134,12 +139,43 @@ const message = await Message.create(messageData);
 // Populate replyTo before sending to clients
 await message.populate("replyTo");
 
-const receiverSocketId = onlineUsers.get(receiver);
+    const receiverSocketId = onlineUsers.get(receiver);
 
-if (receiverSocketId) {
-  message.delivered = true;
-  await message.save();
-  io.to(receiverSocketId).emit("receiveMessage", message);
+    if (receiverSocketId) {
+      message.delivered = true;
+      await message.save();
+      const senderUser = await User.findById(req.user._id)
+        .select("name email profilePic bio status lastSeen chatPasswordEnabled verifiedUsers");
+      const canRead = senderUser && canReadSenderLockedChat(senderUser, receiver);
+      const requiresChatLock = !canRead;
+      const unreadCount = await Message.countDocuments({
+        sender: req.user._id,
+        receiver,
+        seen: false,
+        deletedFor: { $ne: receiver },
+        deletedForEveryone: { $ne: true },
+      });
+
+      // Keep the contact feed live without exposing a locked sender's message body.
+      io.to(receiverSocketId).emit("conversationActivity", {
+        user: senderUser ? {
+          _id: senderUser._id.toString(),
+          name: senderUser.name,
+          email: senderUser.email,
+          profilePic: senderUser.profilePic,
+          bio: senderUser.bio,
+          status: senderUser.status,
+          lastSeen: senderUser.lastSeen,
+        } : { _id: req.user._id.toString() },
+        messageAt: message.createdAt,
+        requiresChatLock,
+        unreadCount,
+        lastMessagePreview: requiresChatLock
+          ? "🔒 Private message — unlock to read"
+          : message.text?.trim() || (message.image ? "📷 Photo" : message.attachment?.isVoice ? "🎙 Voice message" : "📎 Attachment"),
+      });
+
+      if (canRead) io.to(receiverSocketId).emit("receiveMessage", message);
 }
 
 res.status(201).json(message);
@@ -544,11 +580,8 @@ export const clearChat = async (req, res) => {
   try {
     const { receiverId } = req.params;
 
-    const otherUser = await User.findById(receiverId).select("_id chatPasswordEnabled verifiedUsers");
+    const otherUser = await User.findById(receiverId).select("_id");
     if (!otherUser) return res.status(404).json({ message: "User not found" });
-    if (!canAccessChat(otherUser, req.user._id)) {
-      return res.status(403).json({ message: "Chat password required" });
-    }
 
     await Message.updateMany(
       {
