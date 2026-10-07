@@ -48,8 +48,7 @@ class ApiService {
         .timeout(const Duration(seconds: 30));
     final data = _decodeObjectResponse(
       response,
-      unavailableMessage:
-          'The admin dashboard is missing from the deployed server. Deploy the latest server code and try again.',
+      unavailableMessage: 'The dashboard server returned a non-JSON response',
     );
     if (data is Map<String, dynamic>) {
       if (response.statusCode == 200) return data;
@@ -100,8 +99,10 @@ class ApiService {
           }),
         )
         .timeout(const Duration(seconds: 20));
-    final data = _decodeObjectResponse(response,
-        unavailableMessage: 'The server returned an invalid response');
+    final data = _decodeObjectResponse(
+      response,
+      unavailableMessage: 'The server returned a non-JSON response',
+    );
     if (response.statusCode == 200 || response.statusCode == 202) return data;
     throw Exception(data['message']?.toString() ?? 'Could not change password');
   }
@@ -114,9 +115,10 @@ class ApiService {
         ? http.put(uri, headers: headers, body: jsonEncode(body))
         : http.post(uri, headers: headers, body: jsonEncode(body));
     final response = await request.timeout(const Duration(seconds: 20));
-    final data = _decodeObjectResponse(response,
-        unavailableMessage:
-            'The admin dashboard is missing from the deployed server. Deploy the latest server code and try again.');
+    final data = _decodeObjectResponse(
+      response,
+      unavailableMessage: 'The admin server returned a non-JSON response',
+    );
     if (response.statusCode == 200) return data;
     throw Exception(data['message']?.toString() ?? 'Admin action failed');
   }
@@ -129,7 +131,11 @@ class ApiService {
     } on FormatException {
       // A stale deployment can return an HTML 404 page instead of JSON.
     }
-    throw Exception(unavailableMessage);
+    final contentType = response.headers['content-type'] ?? 'unknown content type';
+    final requestUrl = response.request?.url.toString() ?? 'unknown URL';
+    throw Exception(
+      '$unavailableMessage (HTTP ${response.statusCode}, $contentType, $requestUrl)',
+    );
   }
 
   // ── Messages ───────────────────────────────────────────────────────────────
