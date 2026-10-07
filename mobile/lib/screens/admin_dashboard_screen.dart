@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../widgets/password_prompt_dialog.dart';
+import '../widgets/password_change_dialog.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -13,6 +14,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Map<String, dynamic>? _overview;
   bool _loading = false;
   String? _error;
+  String? _adminPassword;
+
+  @override
+  void dispose() {
+    _adminPassword = null;
+    super.dispose();
+  }
 
   Future<void> _unlock() async {
     final password = await showDialog<String>(
@@ -32,7 +40,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     });
     try {
       final result = await ApiService.getAdminOverview(password);
-      if (mounted) setState(() => _overview = result);
+      if (mounted) {
+        setState(() {
+          _overview = result;
+          _adminPassword = password;
+        });
+      }
     } catch (error) {
       if (mounted) {
         setState(() => _error = error.toString().replaceFirst('Exception: ', ''));
@@ -48,6 +61,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final users = data?['users'] as Map<String, dynamic>?;
     final cloudinary = data?['cloudinary'] as Map<String, dynamic>?;
     final atlas = data?['atlas'] as Map<String, dynamic>?;
+    final policy = data?['passwordPolicy'] as Map<String, dynamic>? ?? {};
+    final pending = policy['pendingRequests'] as List<dynamic>? ?? const [];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -102,6 +117,49 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 children: [
+                  Card(
+                    color: Colors.white,
+                    child: Column(children: [
+                      SwitchListTile.adaptive(
+                        value: policy['allowUserPasswordChange'] == true,
+                        activeColor: const Color(0xFFFF7A00),
+                        title: const Text('Allow users to change passwords'),
+                        subtitle: const Text('The first change is immediate; later changes need your approval.'),
+                        onChanged: _loading ? null : _setPasswordPolicy,
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.password, color: Color(0xFFFF7A00)),
+                        title: const Text('Change admin password'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _changeAdminPassword,
+                      ),
+                    ]),
+                  ),
+                  if (pending.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Card(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('Password change requests (${pending.length})', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 8),
+                          for (final item in pending.whereType<Map>())
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(item['name']?.toString() ?? 'User'),
+                              subtitle: Text(item['email']?.toString() ?? ''),
+                              trailing: Wrap(spacing: 2, children: [
+                                IconButton(tooltip: 'Approve', icon: const Icon(Icons.check_circle_outline, color: Colors.green), onPressed: () => _reviewRequest(item, true)),
+                                IconButton(tooltip: 'Deny', icon: const Icon(Icons.cancel_outlined, color: Colors.red), onPressed: () => _reviewRequest(item, false)),
+                              ]),
+                            ),
+                        ]),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
                   _metricCard(
                     icon: Icons.cloud_outlined,
                     title: 'Cloudinary storage',
@@ -190,6 +248,56 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             ),
     );
+  }
+
+  Future<void> _setPasswordPolicy(bool allow) async {
+    final password = _adminPassword;
+    if (password == null) return;
+    setState(() => _loading = true);
+    try {
+      await ApiService.updateAdminPasswordPolicy(password, allow);
+      await _reloadOverview(password);
+    } catch (error) {
+      _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _reviewRequest(Map request, bool approve) async {
+    final password = _adminPassword;
+    final id = request['id']?.toString() ?? request['_id']?.toString();
+    if (password == null || id == null) return;
+    try {
+      await ApiService.reviewPasswordRequest(password, id, approve);
+      await _reloadOverview(password);
+      _showMessage(approve ? 'Password change approved.' : 'Password change denied.');
+    } catch (error) {
+      _showMessage(error.toString());
+    }
+  }
+
+  Future<void> _changeAdminPassword() async {
+    final values = await showPasswordChangeDialog(context, title: 'Change admin password');
+    if (values == null || !mounted) return;
+    try {
+      await ApiService.changeAdminPassword(currentPassword: values.currentPassword, newPassword: values.newPassword);
+      _adminPassword = values.newPassword;
+      await _reloadOverview(values.newPassword);
+      _showMessage('Admin password changed.');
+    } catch (error) {
+      _showMessage(error.toString());
+    }
+  }
+
+  Future<void> _reloadOverview(String password) async {
+    final result = await ApiService.getAdminOverview(password);
+    if (mounted) setState(() => _overview = result);
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.replaceFirst('Exception: ', ''))));
   }
 
   Widget _metricCard({

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -122,33 +123,48 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    try {
-      final response = await http
-          .post(
-            Uri.parse(ApiConfig.login),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'email': email, 'password': password}),
-          )
-          .timeout(const Duration(seconds: 15));
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) {
-        final token = data['token'] as String;
-        final user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
-        await _saveSession(token, user);
-        return {'success': true, 'user': user, 'token': token};
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final response = await http
+            .post(
+              Uri.parse(ApiConfig.login),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({'email': email, 'password': password}),
+            )
+            .timeout(const Duration(seconds: 45));
+        final decoded = jsonDecode(response.body);
+        if (decoded is! Map<String, dynamic>) {
+          throw const FormatException('Unexpected login response');
+        }
+        if (response.statusCode == 200) {
+          final token = decoded['token'] as String;
+          final user =
+              UserModel.fromJson(decoded['user'] as Map<String, dynamic>);
+          await _saveSession(token, user);
+          return {'success': true, 'user': user, 'token': token};
+        }
+        if (response.statusCode >= 500 && attempt == 0) {
+          await Future<void>.delayed(const Duration(seconds: 2));
+          continue;
+        }
+        return {
+          'success': false,
+          'code': decoded['code'],
+          'message': decoded['message'] ?? 'Login failed',
+        };
+      } catch (error) {
+        debugPrint('Login attempt ${attempt + 1} failed: $error');
+        if (attempt == 0) {
+          await Future<void>.delayed(const Duration(seconds: 2));
+          continue;
+        }
+        return {
+          'success': false,
+          'message': 'Could not reach ReSender. Check your connection and try again.'
+        };
       }
-      return {
-        'success': false,
-        'code': data['code'],
-        'message': data['message'] ?? 'Login failed',
-      };
-    } catch (e) {
-      debugPrint('Auth error: $e');
-      return {
-        'success': false,
-        'message': 'Connection failed. Please check your internet.'
-      };
     }
+    return {'success': false, 'message': 'Login failed. Please try again.'};
   }
 
   static Future<Map<String, dynamic>> validateSession(String token) async {

@@ -16,6 +16,11 @@ class ApiConfig {
   static String get login => '$baseUrl/api/auth/login';
   static String get authSession => '$baseUrl/api/auth/session';
   static String get adminOverview => '$baseUrl/api/admin/overview';
+  static String get adminPasswordPolicy => '$baseUrl/api/admin/password-policy';
+  static String get adminPassword => '$baseUrl/api/admin/password';
+  static String adminPasswordRequest(String userId) =>
+      '$baseUrl/api/admin/password-requests/$userId';
+  static String get changePassword => '$baseUrl/api/auth/change-password';
 
   static String get users => '$baseUrl/api/users';
   static String get conversations => '$baseUrl/api/users/conversations';

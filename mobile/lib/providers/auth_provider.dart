@@ -67,7 +67,7 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final result = await AuthService.login(email: email, password: password)
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 100));
       if (result['success'] == true) {
         _user = result['user'] as UserModel;
         _token = result['token'] as String;

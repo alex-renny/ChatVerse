@@ -46,12 +46,90 @@ class ApiService {
           body: jsonEncode({'password': password}),
         )
         .timeout(const Duration(seconds: 30));
-    final data = jsonDecode(response.body);
+    final data = _decodeObjectResponse(
+      response,
+      unavailableMessage:
+          'The admin dashboard is missing from the deployed server. Deploy the latest server code and try again.',
+    );
     if (data is Map<String, dynamic>) {
       if (response.statusCode == 200) return data;
       throw Exception(data['message']?.toString() ?? 'Unable to load admin data');
     }
     throw Exception('Unable to load admin data');
+  }
+
+  static Future<Map<String, dynamic>> updateAdminPasswordPolicy(
+      String password, bool allow) async {
+    return _adminRequest(
+      'PUT',
+      ApiConfig.adminPasswordPolicy,
+      {'password': password, 'allowUserPasswordChange': allow},
+    );
+  }
+
+  static Future<Map<String, dynamic>> reviewPasswordRequest(
+      String adminPassword, String userId, bool approve) async {
+    return _adminRequest(
+      'POST',
+      ApiConfig.adminPasswordRequest(userId),
+      {'password': adminPassword, 'approve': approve},
+    );
+  }
+
+  static Future<Map<String, dynamic>> changeAdminPassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    return _adminRequest('PUT', ApiConfig.adminPassword, {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
+  }
+
+  static Future<Map<String, dynamic>> changeOwnPassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse(ApiConfig.changePassword),
+          headers: await _headers(),
+          body: jsonEncode({
+            'currentPassword': currentPassword,
+            'newPassword': newPassword,
+          }),
+        )
+        .timeout(const Duration(seconds: 20));
+    final data = _decodeObjectResponse(response,
+        unavailableMessage: 'The server returned an invalid response');
+    if (response.statusCode == 200 || response.statusCode == 202) return data;
+    throw Exception(data['message']?.toString() ?? 'Could not change password');
+  }
+
+  static Future<Map<String, dynamic>> _adminRequest(
+      String method, String url, Map<String, dynamic> body) async {
+    final uri = Uri.parse(url);
+    final headers = await _headers();
+    final request = method == 'PUT'
+        ? http.put(uri, headers: headers, body: jsonEncode(body))
+        : http.post(uri, headers: headers, body: jsonEncode(body));
+    final response = await request.timeout(const Duration(seconds: 20));
+    final data = _decodeObjectResponse(response,
+        unavailableMessage:
+            'The admin dashboard is missing from the deployed server. Deploy the latest server code and try again.');
+    if (response.statusCode == 200) return data;
+    throw Exception(data['message']?.toString() ?? 'Admin action failed');
+  }
+
+  static Map<String, dynamic> _decodeObjectResponse(
+      http.Response response, {required String unavailableMessage}) {
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } on FormatException {
+      // A stale deployment can return an HTML 404 page instead of JSON.
+    }
+    throw Exception(unavailableMessage);
   }
 
   // ── Messages ───────────────────────────────────────────────────────────────

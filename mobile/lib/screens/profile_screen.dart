@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/password_prompt_dialog.dart';
 import '../widgets/animated_page_route.dart';
+import '../widgets/password_change_dialog.dart';
 import 'admin_dashboard_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -248,6 +249,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
             ],
 
+            Card(
+              color: Colors.white,
+              child: ListTile(
+                leading: const Icon(Icons.key_outlined, color: Color(0xFFFF7A00)),
+                title: const Text('Change account password'),
+                subtitle: const Text('Password changes may require admin approval'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _changeOwnPassword,
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // The web app's chat password protects the owner's incoming chats.
             Card(
               color: Colors.white,
@@ -438,6 +451,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } else if (mounted) {
       _showProfileMessage('Password must be at least 4 characters.',
           error: true);
+    }
+  }
+
+  Future<void> _changeOwnPassword() async {
+    final values = await showPasswordChangeDialog(
+      context,
+      title: 'Change account password',
+    );
+    if (values == null || !mounted) return;
+    try {
+      final result = await ApiService.changeOwnPassword(
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+      );
+      if (!mounted) return;
+      final approvalRequired = result['approvalRequired'] == true;
+      _showProfileMessage(
+        approvalRequired
+            ? 'Request sent. Your admin must approve this password change.'
+            : 'Your password has been changed.',
+      );
+    } catch (error) {
+      if (mounted) {
+        _showProfileMessage(
+          error.toString().replaceFirst('Exception: ', ''),
+          error: true,
+        );
+      }
     }
   }
 
