@@ -127,7 +127,6 @@ export const getAdminOverview = async (req, res) => {
       User.countDocuments(),
       User.find({}, "name email createdAt")
         .sort({ createdAt: -1 })
-        .limit(5000)
         .lean(),
       cloudinary.api.usage().catch((error) => {
         console.error("Cloudinary usage lookup failed:", error.message);
@@ -155,7 +154,6 @@ export const getAdminOverview = async (req, res) => {
           id: _id.toString(), name, email, createdAt,
           isAdmin: email?.trim().toLowerCase() === configuredAdminEmail(),
         })),
-        listLimit: 5000,
       },
       passwordPolicy: {
         allowUserPasswordChange: settings?.allowUserPasswordChange === true,

@@ -15,13 +15,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   bool _loading = false;
   String? _error;
   String? _adminPassword;
-  final _accountSearchCtrl = TextEditingController();
-  String _accountSearchQuery = '';
 
   @override
   void dispose() {
     _adminPassword = null;
-    _accountSearchCtrl.dispose();
     super.dispose();
   }
 
@@ -67,15 +64,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final policy = data?['passwordPolicy'] as Map<String, dynamic>? ?? {};
     final pending = policy['pendingRequests'] as List<dynamic>? ?? const [];
     final accounts = users?['accounts'] as List<dynamic>? ?? const [];
-    final accountQuery = _accountSearchQuery.trim().toLowerCase();
-    final matchingAccounts = accountQuery.length < 3
-        ? const <dynamic>[]
-        : accounts.where((entry) {
-            if (entry is! Map) return false;
-            final name = entry['name']?.toString().trim().toLowerCase() ?? '';
-            final email = entry['email']?.toString().trim().toLowerCase() ?? '';
-            return name.startsWith(accountQuery) || email.startsWith(accountQuery);
-          }).take(50).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -231,44 +219,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     color: Color(0xFFFF7A00))),
                           ]),
                           const Divider(height: 24),
-                          const Text('Manage accounts',
+                          const Text('All app accounts',
                               style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: Colors.black54)),
                           const SizedBox(height: 8),
-                          TextField(
-                            controller: _accountSearchCtrl,
-                            onChanged: (value) => setState(() => _accountSearchQuery = value),
-                            decoration: InputDecoration(
-                              prefixIcon: const Icon(Icons.search),
-                              hintText: 'Search name or email (3+ letters)',
-                              isDense: true,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              suffixIcon: _accountSearchQuery.isEmpty
-                                  ? null
-                                  : IconButton(
-                                      icon: const Icon(Icons.close),
-                                      onPressed: () {
-                                        _accountSearchCtrl.clear();
-                                        setState(() => _accountSearchQuery = '');
-                                      },
-                                    ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          if (accountQuery.length < 3)
-                            const Text('Type at least 3 starting letters to find an account.',
-                                style: TextStyle(color: Colors.black54, fontSize: 12))
-                          else if (matchingAccounts.isEmpty)
-                            const Text('No matching accounts.',
-                                style: TextStyle(color: Colors.black54))
-                          else ...[
-                            for (final rawEntry in matchingAccounts)
-                              if (rawEntry is Map) _accountTile(rawEntry),
-                            if (matchingAccounts.length == 50)
-                              const Text('Showing the first 50 matches.',
-                                  style: TextStyle(color: Colors.black54, fontSize: 12)),
-                          ],
+                          for (final entry in accounts)
+                            if (entry is Map) _accountTile(entry),
                           const SizedBox(height: 8),
                           const Text(
                             'Passwords are never shown. ReSender stores password hashes, which cannot be used to recover the original passwords.',
