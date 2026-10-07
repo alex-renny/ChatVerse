@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -10,6 +11,7 @@ import '../widgets/password_prompt_dialog.dart';
 import '../widgets/animated_page_route.dart';
 import '../widgets/resender_loader.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 import 'chat/chat_screen.dart';
 import 'profile_screen.dart';
 
@@ -36,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final auth = context.read<AuthProvider>();
     final chat = context.read<ChatProvider>();
 
+    unawaited(NotificationService.requestPermissionIfEnabled());
     chat.init(auth.user!.id);
     users.fetchConversationUsers();
     users.fetchUsers();

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/password_prompt_dialog.dart';
 import '../widgets/animated_page_route.dart';
@@ -28,6 +29,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _chatPasswordEnabled = false;
   List<UserModel> _chatAccessUsers = [];
   bool _loadingChatAccess = true;
+  bool _notificationsEnabled = true;
+  bool _updatingNotifications = false;
 
   @override
   void initState() {
@@ -37,6 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _bioCtrl = TextEditingController(text: user.bio);
     _statusCtrl = TextEditingController(text: user.status);
     _loadChatPrivacyStatus();
+    _loadNotificationPreference();
   }
 
   @override
@@ -257,6 +261,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 subtitle: const Text('Password changes may require admin approval'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: _changeOwnPassword,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            Card(
+              color: Colors.white,
+              child: SwitchListTile(
+                secondary: const Icon(Icons.notifications_active_outlined,
+                    color: Color(0xFFFF7A00)),
+                title: const Text('Message notifications'),
+                subtitle: Text(_notificationsEnabled
+                    ? 'Show notifications when new messages arrive'
+                    : 'Notifications are turned off on this device'),
+                value: _notificationsEnabled,
+                activeThumbColor: const Color(0xFFFF7A00),
+                onChanged: _updatingNotifications ? null : _changeNotifications,
               ),
             ),
             const SizedBox(height: 16),
@@ -534,6 +554,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
             error ? const Color(0xFF9B2525) : const Color(0xFF237A45),
         duration: const Duration(seconds: 3),
       ));
+  }
+
+  Future<void> _loadNotificationPreference() async {
+    final enabled = await NotificationService.isEnabled();
+    if (mounted) setState(() => _notificationsEnabled = enabled);
+  }
+
+  Future<void> _changeNotifications(bool enabled) async {
+    setState(() => _updatingNotifications = true);
+    final permissionGranted = await NotificationService.setEnabled(enabled);
+    if (!mounted) return;
+
+    if (enabled && !permissionGranted) {
+      await NotificationService.setEnabled(false);
+      if (!mounted) return;
+      setState(() {
+        _notificationsEnabled = false;
+        _updatingNotifications = false;
+      });
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: const Text('Allow notifications for ReSender in Android settings to turn them on.'),
+          action: SnackBarAction(
+            label: 'Settings',
+            onPressed: NotificationService.openSystemSettings,
+          ),
+          duration: const Duration(seconds: 6),
+        ));
+      return;
+    }
+
+    setState(() {
+      _notificationsEnabled = enabled;
+      _updatingNotifications = false;
+    });
+    _showProfileMessage(enabled
+        ? 'Message notifications are on.'
+        : 'Message notifications are off.');
   }
 
   Widget _editField(String label, TextEditingController ctrl,

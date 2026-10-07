@@ -3,6 +3,10 @@
     <!-- Internet access for API + Socket.IO -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- Android 13+ runtime permission for message notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+
     <!-- Audio recording for voice messages -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 

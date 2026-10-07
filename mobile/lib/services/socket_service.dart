@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../config/api_config.dart';
 import '../models/message_model.dart';
+import 'notification_service.dart';
 
 typedef MessageCallback = void Function(MessageModel message);
 typedef MessageIdCallback = void Function(String messageId);
@@ -63,7 +65,16 @@ class SocketService {
 
     _socket!.on('conversationActivity', (data) {
       if (data is Map) {
-        onConversationActivity?.call(Map<String, dynamic>.from(data));
+        final activity = Map<String, dynamic>.from(data);
+        onConversationActivity?.call(activity);
+        final sender = activity['user'];
+        final senderName = sender is Map
+            ? sender['name']?.toString() ?? 'Someone'
+            : 'Someone';
+        unawaited(NotificationService.showIncomingMessage(
+          senderName: senderName,
+          isPrivate: activity['requiresChatLock'] == true,
+        ).catchError((_) {}));
       }
     });
 
