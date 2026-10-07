@@ -75,6 +75,26 @@ class ApiService {
     );
   }
 
+  static Future<Map<String, dynamic>> sendAdminMessage({
+    required String adminPassword,
+    required String userId,
+    required String text,
+  }) =>
+      _adminRequest('POST', ApiConfig.adminUserMessage(userId), {
+        'password': adminPassword,
+        'text': text,
+      });
+
+  static Future<Map<String, dynamic>> removeUserAccount({
+    required String adminPassword,
+    required String userId,
+    required String confirmEmail,
+  }) =>
+      _adminRequest('POST', ApiConfig.adminRemoveUser(userId), {
+        'password': adminPassword,
+        'confirmEmail': confirmEmail,
+      }, timeout: const Duration(minutes: 2));
+
   static Future<Map<String, dynamic>> changeAdminPassword({
     required String currentPassword,
     required String newPassword,
@@ -108,18 +128,22 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> _adminRequest(
-      String method, String url, Map<String, dynamic> body) async {
+    String method,
+    String url,
+    Map<String, dynamic> body, {
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
     final uri = Uri.parse(url);
     final headers = await _headers();
     final request = method == 'PUT'
         ? http.put(uri, headers: headers, body: jsonEncode(body))
         : http.post(uri, headers: headers, body: jsonEncode(body));
-    final response = await request.timeout(const Duration(seconds: 20));
+    final response = await request.timeout(timeout);
     final data = _decodeObjectResponse(
       response,
       unavailableMessage: 'The admin server returned a non-JSON response',
     );
-    if (response.statusCode == 200) return data;
+    if (response.statusCode >= 200 && response.statusCode < 300) return data;
     throw Exception(data['message']?.toString() ?? 'Admin action failed');
   }
 

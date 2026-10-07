@@ -15,10 +15,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   bool _loading = false;
   String? _error;
   String? _adminPassword;
+  final _accountSearchCtrl = TextEditingController();
+  String _accountSearchQuery = '';
 
   @override
   void dispose() {
     _adminPassword = null;
+    _accountSearchCtrl.dispose();
     super.dispose();
   }
 
@@ -63,10 +66,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final atlas = data?['atlas'] as Map<String, dynamic>?;
     final policy = data?['passwordPolicy'] as Map<String, dynamic>? ?? {};
     final pending = policy['pendingRequests'] as List<dynamic>? ?? const [];
+    final accounts = users?['accounts'] as List<dynamic>? ?? const [];
+    final accountQuery = _accountSearchQuery.trim().toLowerCase();
+    final matchingAccounts = accountQuery.length < 3
+        ? const <dynamic>[]
+        : accounts.where((entry) {
+            if (entry is! Map) return false;
+            final name = entry['name']?.toString().trim().toLowerCase() ?? '';
+            final email = entry['email']?.toString().trim().toLowerCase() ?? '';
+            return name.startsWith(accountQuery) || email.startsWith(accountQuery);
+          }).take(50).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(title: const Text('Admin dashboard')),
+      appBar: AppBar(
+        title: const Text('Admin dashboard'),
+        actions: [
+          if (data != null)
+            IconButton(
+              tooltip: 'Refresh dashboard',
+              onPressed: _loading ? null : _refreshOverview,
+              icon: const Icon(Icons.refresh),
+            ),
+        ],
+      ),
       body: data == null
           ? Center(
               child: Padding(
@@ -111,7 +134,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             )
           : RefreshIndicator(
-              onRefresh: _unlock,
+              onRefresh: _refreshOverview,
               color: const Color(0xFFFF7A00),
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -208,27 +231,44 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     color: Color(0xFFFF7A00))),
                           ]),
                           const Divider(height: 24),
-                          const Text('Usernames and email addresses',
+                          const Text('Manage accounts',
                               style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: Colors.black54)),
-                          const SizedBox(height: 6),
-                          for (final entry in
-                              (users?['accounts'] as List<dynamic>? ?? const []))
-                            ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: const CircleAvatar(
-                                  backgroundColor: Color(0xFFFFF0E4),
-                                  child: Icon(Icons.person_outline,
-                                      color: Color(0xFFFF7A00))),
-                              title: Text(entry['name']?.toString() ?? 'User'),
-                              subtitle: Text(entry['email']?.toString() ?? ''),
-                              dense: true,
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _accountSearchCtrl,
+                            onChanged: (value) => setState(() => _accountSearchQuery = value),
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.search),
+                              hintText: 'Search name or email (3+ letters)',
+                              isDense: true,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              suffixIcon: _accountSearchQuery.isEmpty
+                                  ? null
+                                  : IconButton(
+                                      icon: const Icon(Icons.close),
+                                      onPressed: () {
+                                        _accountSearchCtrl.clear();
+                                        setState(() => _accountSearchQuery = '');
+                                      },
+                                    ),
                             ),
-                          if ((users?['count'] as int? ?? 0) >
-                              ((users?['accounts'] as List<dynamic>?)?.length ?? 0))
-                            const Text('The list is capped at 5,000 accounts.',
-                                style: TextStyle(color: Colors.black54)),
+                          ),
+                          const SizedBox(height: 6),
+                          if (accountQuery.length < 3)
+                            const Text('Type at least 3 starting letters to find an account.',
+                                style: TextStyle(color: Colors.black54, fontSize: 12))
+                          else if (matchingAccounts.isEmpty)
+                            const Text('No matching accounts.',
+                                style: TextStyle(color: Colors.black54))
+                          else ...[
+                            for (final rawEntry in matchingAccounts)
+                              if (rawEntry is Map) _accountTile(rawEntry),
+                            if (matchingAccounts.length == 50)
+                              const Text('Showing the first 50 matches.',
+                                  style: TextStyle(color: Colors.black54, fontSize: 12)),
+                          ],
                           const SizedBox(height: 8),
                           const Text(
                             'Passwords are never shown. ReSender stores password hashes, which cannot be used to recover the original passwords.',
@@ -248,6 +288,84 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             ),
     );
+  }
+
+  Widget _accountTile(Map entry) {
+    final name = entry['name']?.toString() ?? 'User';
+    final email = entry['email']?.toString() ?? '';
+    final userId = entry['id']?.toString() ?? '';
+    final isAdmin = entry['isAdmin'] == true;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const CircleAvatar(
+        backgroundColor: Color(0xFFFFF0E4),
+        child: Icon(Icons.person_outline, color: Color(0xFFFF7A00)),
+      ),
+      title: Text(name),
+      subtitle: Text(email),
+      dense: true,
+      trailing: Wrap(spacing: 0, children: [
+        IconButton(
+          tooltip: 'Message as admin',
+          icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFFFF7A00)),
+          onPressed: userId.isEmpty || isAdmin
+              ? null
+              : () => _composeAdminMessage(entry),
+        ),
+        IconButton(
+          tooltip: 'Remove account',
+          icon: const Icon(Icons.person_remove_outlined, color: Colors.red),
+          onPressed: isAdmin || userId.isEmpty ? null : () => _confirmRemoveAccount(entry),
+        ),
+      ]),
+    );
+  }
+
+  Future<void> _composeAdminMessage(Map entry) async {
+    final userId = entry['id']?.toString();
+    final name = entry['name']?.toString() ?? 'user';
+    final password = _adminPassword;
+    if (userId == null || password == null) return;
+    final text = await showDialog<String>(
+      context: context,
+      builder: (_) => _AdminMessageDialog(userName: name),
+    );
+    if (text == null || !mounted) return;
+    try {
+      await ApiService.sendAdminMessage(
+        adminPassword: password,
+        userId: userId,
+        text: text,
+      );
+      _showMessage('Message sent from your admin account.');
+    } catch (error) {
+      _showMessage(error.toString());
+    }
+  }
+
+  Future<void> _confirmRemoveAccount(Map entry) async {
+    final userId = entry['id']?.toString();
+    final email = entry['email']?.toString() ?? '';
+    final password = _adminPassword;
+    if (userId == null || password == null || email.isEmpty) return;
+    final confirmation = await showDialog<String>(
+      context: context,
+      builder: (_) => _RemoveAccountDialog(email: email),
+    );
+    if (confirmation == null || !mounted) return;
+    try {
+      final result = await ApiService.removeUserAccount(
+        adminPassword: password,
+        userId: userId,
+        confirmEmail: confirmation,
+      );
+      await _reloadOverview(password);
+      _showMessage(result['mediaCleanupFailed'] == true
+          ? 'Account and chat history removed, but some uploaded files could not be deleted.'
+          : 'Account, chat history, and uploaded files were removed.');
+    } catch (error) {
+      _showMessage(error.toString());
+    }
   }
 
   Future<void> _setPasswordPolicy(bool allow) async {
@@ -293,6 +411,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _reloadOverview(String password) async {
     final result = await ApiService.getAdminOverview(password);
     if (mounted) setState(() => _overview = result);
+  }
+
+  Future<void> _refreshOverview() async {
+    final password = _adminPassword;
+    if (password == null) return;
+    setState(() => _loading = true);
+    try {
+      await _reloadOverview(password);
+    } catch (error) {
+      _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _showMessage(String message) {
@@ -372,4 +503,119 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
     return '${amount.toStringAsFixed(unit == 0 ? 0 : 2)} ${units[unit]}';
   }
+}
+
+class _AdminMessageDialog extends StatefulWidget {
+  final String userName;
+  const _AdminMessageDialog({required this.userName});
+
+  @override
+  State<_AdminMessageDialog> createState() => _AdminMessageDialogState();
+}
+
+class _AdminMessageDialogState extends State<_AdminMessageDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text('Message ${widget.userName}'),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text(
+              'This sends a normal message from your admin account. It does not open or show the user’s existing chat history.',
+              style: TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              minLines: 3,
+              maxLines: 6,
+              maxLength: 2000,
+              decoration: const InputDecoration(
+                labelText: 'Message',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final text = _controller.text.trim();
+              if (text.isNotEmpty) Navigator.pop(context, text);
+            },
+            child: const Text('Send'),
+          ),
+        ],
+      );
+}
+
+class _RemoveAccountDialog extends StatefulWidget {
+  final String email;
+  const _RemoveAccountDialog({required this.email});
+
+  @override
+  State<_RemoveAccountDialog> createState() => _RemoveAccountDialogState();
+}
+
+class _RemoveAccountDialogState extends State<_RemoveAccountDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Permanently remove account?'),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text(
+              'This permanently deletes the account, server chat history, and associated uploaded files. Copies already saved on users’ devices cannot be removed. Type the account email to confirm.',
+              style: TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            SelectableText(widget.email,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              keyboardType: TextInputType.emailAddress,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'Confirm account email',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: _controller.text.trim().toLowerCase() ==
+                    widget.email.trim().toLowerCase()
+                ? () => Navigator.pop(context, _controller.text.trim())
+                : null,
+            child: const Text('Remove permanently'),
+          ),
+        ],
+      );
 }

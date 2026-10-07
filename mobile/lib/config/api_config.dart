@@ -20,6 +20,10 @@ class ApiConfig {
   static String get adminPassword => '$baseUrl/api/admin/password';
   static String adminPasswordRequest(String userId) =>
       '$baseUrl/api/admin/password-requests/$userId';
+  static String adminUserMessage(String userId) =>
+      '$baseUrl/api/admin/users/$userId/messages';
+  static String adminRemoveUser(String userId) =>
+      '$baseUrl/api/admin/users/$userId/remove';
   static String get changePassword => '$baseUrl/api/auth/change-password';
 
   static String get users => '$baseUrl/api/users';

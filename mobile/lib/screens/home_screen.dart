@@ -55,11 +55,13 @@ class _HomeScreenState extends State<HomeScreen> {
   List<UserModel> get _filteredUsers {
     final users = context.read<UsersProvider>();
     if (_searchQuery.isEmpty) return users.conversationUsers;
-    return users.allUsers
-        .where((u) =>
-            u.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            u.email.toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.length < 3) return const [];
+    return users.allUsers.where((user) {
+      final name = user.name.trim().toLowerCase();
+      final email = user.email.trim().toLowerCase();
+      return name.startsWith(query) || email.startsWith(query);
+    }).toList();
   }
 
   @override
@@ -249,17 +251,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _emptyState() {
+    final needsMoreLetters = _showSearch && _searchQuery.trim().length < 3;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         SizedBox(height: MediaQuery.of(context).size.height * 0.2),
         Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             Text('💬', style: TextStyle(fontSize: 48)),
             SizedBox(height: 16),
             Text(
-              'No users found',
+              needsMoreLetters ? 'Type at least 3 letters' : 'No users found',
               style: TextStyle(
                 color: Color(0xFF2C2C2C),
                 fontSize: 18,
@@ -268,7 +271,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             SizedBox(height: 8),
             Text(
-              'Try a different search term',
+              needsMoreLetters
+                  ? 'Matching starts at the beginning of a name or email.'
+                  : 'Try a different starting prefix.',
               style: TextStyle(color: Colors.grey),
             ),
           ],
