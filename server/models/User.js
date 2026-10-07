@@ -21,6 +21,19 @@ const userSchema = new mongoose.Schema(
       required: true,
       minlength: 6,
     },
+    passwordChangeCount: {
+      type: Number,
+      default: 0,
+    },
+    pendingPasswordChangeHash: {
+      type: String,
+      default: "",
+      select: false,
+    },
+    passwordChangeRequestedAt: {
+      type: Date,
+      default: null,
+    },
 
     profilePic: {
       type: String,
