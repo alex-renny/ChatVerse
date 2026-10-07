@@ -8,7 +8,7 @@ import '../services/api_service.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/password_prompt_dialog.dart';
 import '../widgets/animated_page_route.dart';
-import 'auth/login_screen.dart';
+import 'admin_dashboard_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -229,6 +229,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
             const SizedBox(height: 40),
 
+            if (user.email.trim().toLowerCase() ==
+                'alexmareyamrenny@gmail.com') ...[
+              Card(
+                color: Colors.white,
+                child: ListTile(
+                  leading: const Icon(Icons.admin_panel_settings_outlined,
+                      color: Color(0xFFFF7A00)),
+                  title: const Text('Admin dashboard'),
+                  subtitle: const Text('Storage usage and app accounts'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                    context,
+                    animatedPageRoute(const AdminDashboardScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
             // The web app's chat password protects the owner's incoming chats.
             Card(
               color: Colors.white,
@@ -345,12 +364,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: OutlinedButton.icon(
                 onPressed: () async {
                   await auth.logout();
-                  if (!mounted) return;
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    animatedPageRoute(const LoginScreen()),
-                    (_) => false,
-                  );
                 },
                 icon: const Icon(Icons.logout, color: Colors.red),
                 label: const Text(

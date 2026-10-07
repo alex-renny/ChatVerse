@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { register } from "../services/authService";
+import { login as loginService, register } from "../services/authService";
+import { useAuth } from "../context/AuthContext";
 
 function Register() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [form, setForm] = useState({
     name: "",
@@ -24,10 +26,17 @@ function Register() {
 
     try {
       const data = await register(form);
-      alert(data.message);
-      navigate("/");
+      login(data.user, data.token);
+      navigate("/chat");
     } catch (error) {
-      alert(error.response?.data?.message || "Registration failed");
+      try {
+        // Recover when account creation succeeded but its response was lost.
+        const data = await loginService(form);
+        login(data.user, data.token);
+        navigate("/chat");
+      } catch {
+        alert(error.response?.data?.message || "Registration failed");
+      }
     }
   };
 

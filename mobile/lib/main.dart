@@ -5,6 +5,7 @@ import 'providers/chat_provider.dart';
 import 'providers/users_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'widgets/resender_loader.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -80,64 +81,64 @@ class ChatVerseApp extends StatelessWidget {
         ),
         scrollBehavior:
             const MaterialScrollBehavior().copyWith(overscroll: false),
-        home: const _Splash(),
+        home: const _SessionGate(),
       ),
     );
   }
 }
 
 /// Checks saved session on app start and routes accordingly.
-class _Splash extends StatefulWidget {
-  const _Splash();
+class _SessionGate extends StatefulWidget {
+  const _SessionGate();
 
   @override
-  State<_Splash> createState() => _SplashState();
+  State<_SessionGate> createState() => _SessionGateState();
 }
 
-class _SplashState extends State<_Splash> {
+class _SessionGateState extends State<_SessionGate> {
+  bool _startupComplete = false;
+  bool _lastAuthState = false;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _check());
-  }
-
-  Future<void> _check() async {
-    await context.read<AuthProvider>().checkSession();
-    if (!mounted) return;
-    final auth = context.read<AuthProvider>();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            auth.isAuthenticated ? const HomeScreen() : const LoginScreen(),
-      ),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<AuthProvider>().checkSession();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final status = context.watch<AuthProvider>().status;
+    if (status == AuthStatus.authenticated) {
+      _startupComplete = true;
+      _lastAuthState = true;
+      return const HomeScreen();
+    }
+    if (status == AuthStatus.unauthenticated) {
+      _startupComplete = true;
+      _lastAuthState = false;
+      return const LoginScreen();
+    }
+    if (_startupComplete) {
+      return _lastAuthState ? const HomeScreen() : const LoginScreen();
+    }
     return const Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Color(0xFFFFF9F4),
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.chat_bubble_rounded, size: 72, color: Color(0xFFFF7A00)),
-            SizedBox(height: 20),
             Text(
               'ReSender',
               style: TextStyle(
-                color: Color(0xFF2C2C2C),
-                fontSize: 32,
+                color: Color(0xFFFF7A00),
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
-                letterSpacing: 1.5,
               ),
             ),
-            SizedBox(height: 40),
-            CircularProgressIndicator(
-              color: Color(0xFFFF7A00),
-              strokeWidth: 2,
-            ),
+            SizedBox(height: 12),
+            ResenderLoader(showLabel: true, scale: 1.15),
           ],
         ),
       ),

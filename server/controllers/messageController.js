@@ -11,6 +11,15 @@ const canAccessChat = (owner, requesterId) => {
   );
 };
 
+const requesterCanAccessMessage = async (message, requesterId) => {
+  const senderId = message.sender.toString();
+  const receiverId = message.receiver.toString();
+  if (senderId !== requesterId.toString() && receiverId !== requesterId.toString()) return false;
+  const otherId = senderId === requesterId.toString() ? receiverId : senderId;
+  const otherUser = await User.findById(otherId).select("chatPasswordEnabled verifiedUsers");
+  return !!otherUser && canAccessChat(otherUser, requesterId);
+};
+
 const getCloudinaryAsset = (message) => {
   const storedPublicId = message.imagePublicId || message.attachment?.cloudinaryPublicId;
 
@@ -216,6 +225,15 @@ export const markAsSeen = async (req, res) => {
   try {
     const { senderId } = req.params;
 
+    if (senderId === req.user._id.toString()) {
+      return res.status(400).json({ message: "Invalid sender" });
+    }
+    const sender = await User.findById(senderId).select("_id chatPasswordEnabled verifiedUsers");
+    if (!sender) return res.status(404).json({ message: "User not found" });
+    if (!canAccessChat(sender, req.user._id)) {
+      return res.status(403).json({ message: "Chat password required" });
+    }
+
     await Message.updateMany(
       {
         sender: senderId,
@@ -252,6 +270,10 @@ export const deleteMessage = async (req, res) => {
       return res.status(404).json({
         message: "Message not found",
       });
+    }
+
+    if (!(await requesterCanAccessMessage(message, req.user._id))) {
+      return res.status(403).json({ message: "Chat password required" });
     }
 
     // Delete for Everyone
@@ -346,6 +368,10 @@ export const reactToMessage = async (req, res) => {
       });
     }
 
+    if (!(await requesterCanAccessMessage(message, req.user._id))) {
+      return res.status(403).json({ message: "Chat password required" });
+    }
+
     const existingReaction = message.reactions.find(
       (reaction) => reaction.user.toString() === userId
     );
@@ -395,6 +421,10 @@ export const togglePinMessage = async (req, res) => {
       return res.status(404).json({
         message: "Message not found",
       });
+    }
+
+    if (!(await requesterCanAccessMessage(message, req.user._id))) {
+      return res.status(403).json({ message: "Chat password required" });
     }
 
     // Remove previous pin in this conversation
@@ -476,6 +506,10 @@ export const unpinMessage = async (req, res) => {
       });
     }
 
+    if (!(await requesterCanAccessMessage(message, req.user._id))) {
+      return res.status(403).json({ message: "Chat password required" });
+    }
+
     message.pinned = false;
     message.pinnedBy = null;
     message.pinnedAt = null;
@@ -509,6 +543,12 @@ export const unpinMessage = async (req, res) => {
 export const clearChat = async (req, res) => {
   try {
     const { receiverId } = req.params;
+
+    const otherUser = await User.findById(receiverId).select("_id chatPasswordEnabled verifiedUsers");
+    if (!otherUser) return res.status(404).json({ message: "User not found" });
+    if (!canAccessChat(otherUser, req.user._id)) {
+      return res.status(403).json({ message: "Chat password required" });
+    }
 
     await Message.updateMany(
       {

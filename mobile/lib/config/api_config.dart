@@ -14,6 +14,8 @@ class ApiConfig {
   // ---------- REST endpoints ----------
   static String get register => '$baseUrl/api/auth/register';
   static String get login => '$baseUrl/api/auth/login';
+  static String get authSession => '$baseUrl/api/auth/session';
+  static String get adminOverview => '$baseUrl/api/admin/overview';
 
   static String get users => '$baseUrl/api/users';
   static String get conversations => '$baseUrl/api/users/conversations';

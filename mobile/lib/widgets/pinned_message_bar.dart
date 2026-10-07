@@ -16,7 +16,7 @@ class PinnedMessageBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final preview = message.text.isNotEmpty ? message.text : '[Attachment]';
+    final preview = message.previewText;
 
     return Container(
       decoration: const BoxDecoration(

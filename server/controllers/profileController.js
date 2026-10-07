@@ -16,10 +16,21 @@ const getPublicIdFromUrl = (url) => {
 };
 
 const deleteProfilePicture = async (user) => {
-  const publicId = user.profilePicPublicId || getPublicIdFromUrl(user.profilePic);
+  const storedId = user.profilePicPublicId;
+  const publicId = storedId && !/^https?:\/\//i.test(storedId)
+    ? storedId
+    : getPublicIdFromUrl(user.profilePic);
 
   if (publicId) {
-    await cloudinary.uploader.destroy(publicId, { invalidate: true });
+    try {
+      await cloudinary.uploader.destroy(publicId, {
+        resource_type: "image",
+        invalidate: true,
+      });
+    } catch (error) {
+      // Cleanup failures should not prevent a profile update.
+      console.warn("Unable to remove old profile picture:", error.message);
+    }
   }
 };
 
@@ -33,12 +44,15 @@ export const uploadProfilePicture = async (req, res) => {
       });
     }
 
-    if (user.profilePic) await deleteProfilePicture(user);
-
+    const previousProfile = user.profilePic
+      ? { profilePic: user.profilePic, profilePicPublicId: user.profilePicPublicId }
+      : null;
     user.profilePic = req.file.path;
-    user.profilePicPublicId = req.file.path;
+    user.profilePicPublicId = req.file.filename;
 
     await user.save();
+
+    if (previousProfile) await deleteProfilePicture(previousProfile);
 
     res.json(user);
   } catch (err) {
@@ -111,6 +125,8 @@ export const setChatPassword = async (req, res) => {
 
     user.chatPasswordEnabled = true;
     user.chatPassword = hashedPassword;
+    // A changed password revokes prior approvals so access cannot silently persist.
+    user.verifiedUsers = [];
 
     await user.save();
 

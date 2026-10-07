@@ -8,10 +8,10 @@ import '../services/socket_service.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/password_prompt_dialog.dart';
 import '../widgets/animated_page_route.dart';
+import '../widgets/resender_loader.dart';
 import '../services/api_service.dart';
 import 'chat/chat_screen.dart';
 import 'profile_screen.dart';
-import 'auth/login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -75,17 +75,17 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildHeader(auth),
             _buildSearchBar(),
             Expanded(
-              child: users.loading
-                  ? const Center(
-                      child:
-                          CircularProgressIndicator(color: Color(0xFFFF7A00)))
-                  : RefreshIndicator(
+              child: RefreshIndicator(
                       color: const Color(0xFFFF7A00),
                       onRefresh: () async {
                         await users.fetchConversationUsers();
                         await users.fetchUsers();
                       },
-                      child: _filteredUsers.isEmpty
+                      child: users.loading && _filteredUsers.isEmpty
+                          ? const Center(child: ResenderLoader(showLabel: true))
+                          : users.loadFailed && _filteredUsers.isEmpty
+                          ? _connectionErrorState(users)
+                          : _filteredUsers.isEmpty
                           ? _emptyState()
                           : ListView.builder(
                               itemCount: _filteredUsers.length,
@@ -161,11 +161,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 setState(() => _showSearch = true);
               } else if (val == 'logout') {
                 await context.read<AuthProvider>().logout();
-                if (!mounted) return;
-                Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    (r) => false);
               }
             },
             itemBuilder: (ctx) => [
@@ -281,6 +276,35 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+
+  Widget _connectionErrorState(UsersProvider users) => ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * .2),
+          const Icon(Icons.cloud_off_outlined,
+              size: 44, color: Color(0xFFFF7A00)),
+          const SizedBox(height: 12),
+          const Center(
+              child: Text('Could not connect to ReSender',
+                  style: TextStyle(
+                      color: Color(0xFF2C2C2C),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600))),
+          const SizedBox(height: 6),
+          const Center(
+              child: Text('Check your connection and try again.',
+                  style: TextStyle(color: Colors.grey))),
+          Center(
+              child: TextButton.icon(
+            onPressed: () {
+              users.fetchConversationUsers();
+              users.fetchUsers();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+          )),
+        ],
+      );
 }
 
 class _UserTile extends StatelessWidget {

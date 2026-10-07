@@ -7,13 +7,30 @@ class UsersProvider extends ChangeNotifier {
   List<UserModel> _conversationUsers = [];
   List<String> _onlineUserIds = [];
   bool _loading = false;
+  int _pendingLoads = 0;
+  bool _usersLoadFailed = false;
+  bool _conversationsLoadFailed = false;
 
   List<UserModel> get allUsers => _allUsers;
   List<UserModel> get conversationUsers => _conversationUsers;
   List<String> get onlineUserIds => _onlineUserIds;
   bool get loading => _loading;
+  bool get loadFailed => _usersLoadFailed && _allUsers.isEmpty ||
+      _conversationsLoadFailed && _conversationUsers.isEmpty;
 
   bool isOnline(String userId) => _onlineUserIds.contains(userId);
+
+  void _beginLoad() {
+    _pendingLoads++;
+    _loading = true;
+    notifyListeners();
+  }
+
+  void _endLoad() {
+    if (_pendingLoads > 0) _pendingLoads--;
+    _loading = _pendingLoads > 0;
+    notifyListeners();
+  }
 
   void setOnlineUsers(List<String> ids) {
     _onlineUserIds = ids;
@@ -21,19 +38,27 @@ class UsersProvider extends ChangeNotifier {
   }
 
   Future<void> fetchUsers() async {
-    _loading = true;
-    notifyListeners();
-    _allUsers = await ApiService.getUsers();
-    _loading = false;
-    notifyListeners();
+    _beginLoad();
+    try {
+      _allUsers = await ApiService.getUsers();
+      _usersLoadFailed = false;
+    } catch (_) {
+      _usersLoadFailed = true;
+    } finally {
+      _endLoad();
+    }
   }
 
   Future<void> fetchConversationUsers() async {
-    _loading = true;
-    notifyListeners();
-    _conversationUsers = await ApiService.getConversationUsers();
-    _loading = false;
-    notifyListeners();
+    _beginLoad();
+    try {
+      _conversationUsers = await ApiService.getConversationUsers();
+      _conversationsLoadFailed = false;
+    } catch (_) {
+      _conversationsLoadFailed = true;
+    } finally {
+      _endLoad();
+    }
   }
 
   List<UserModel> get sidebarUsers {

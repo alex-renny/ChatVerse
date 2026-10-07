@@ -16,6 +16,7 @@ import '../../services/api_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import '../../widgets/message_bubble.dart';
+import '../../widgets/resender_loader.dart';
 import '../../widgets/user_avatar.dart';
 import '../../widgets/password_prompt_dialog.dart';
 
@@ -38,8 +39,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _recordTimer;
   int _recordSeconds = 0;
   bool _locked = false;
+  bool _privacyCheckFailed = false;
   bool _showSearch = false;
   String _searchQuery = '';
+  int _searchIndex = 0;
+  bool _loadingSearchHistory = false;
+  final Map<String, GlobalKey> _messageKeys = {};
   String _background = '';
   static const _backgrounds = [
     'https://res.cloudinary.com/nbsbvhdj/image/upload/v1784960807/samples/landscapes/nature-mountains.jpg',
@@ -58,11 +63,15 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _load() async {
-    if (await ApiService.isChatPasswordEnabled(widget.partner.id)) {
-      if (mounted) setState(() => _locked = true);
-      return;
+    try {
+      if (await ApiService.isChatPasswordEnabled(widget.partner.id)) {
+        if (mounted) setState(() { _locked = true; _privacyCheckFailed = false; });
+        return;
+      }
+      await _loadMessages();
+    } catch (_) {
+      if (mounted) setState(() { _locked = true; _privacyCheckFailed = true; });
     }
-    await _loadMessages();
   }
 
   Future<void> _loadMessages() async {
@@ -95,6 +104,64 @@ class _ChatScreenState extends State<ChatScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Incorrect password')));
     }
+  }
+
+  Future<void> _loadSearchHistory() async {
+    if (_loadingSearchHistory) return;
+    _loadingSearchHistory = true;
+    try {
+      final chat = context.read<ChatProvider>();
+      while (chat.hasMore && mounted && _searchQuery.trim().isNotEmpty) {
+        final before = chat.messages.length;
+        await chat.loadMore(widget.partner.id);
+        while (chat.loading && mounted) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+        if (chat.messages.length == before) break;
+      }
+    } finally {
+      _loadingSearchHistory = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _scrollToMessage(String id) async {
+    final chat = context.read<ChatProvider>();
+    while (!chat.messages.any((m) => m.id == id) && chat.hasMore && mounted) {
+      final before = chat.messages.length;
+      await chat.loadMore(widget.partner.id);
+      while (chat.loading && mounted) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      if (chat.messages.length == before) break;
+    }
+    if (!mounted) return;
+    if (_searchQuery.isNotEmpty &&
+        !chat.messages.any((m) => m.id == id && m.text.toLowerCase().contains(_searchQuery.toLowerCase()))) {
+      setState(() { _searchQuery = ''; _showSearch = false; });
+    }
+    await WidgetsBinding.instance.endOfFrame;
+    final key = _messageKeys[id];
+    final targetContext = key?.currentContext;
+    if (targetContext != null) {
+      await Scrollable.ensureVisible(targetContext,
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeInOut,
+          alignment: .5);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Original message is no longer available')));
+    }
+  }
+
+  void _moveSearch(int direction) {
+    final chat = context.read<ChatProvider>();
+    final matches = chat.messages
+        .where((m) => m.text.toLowerCase().contains(_searchQuery.toLowerCase()))
+        .toList();
+    if (matches.isEmpty) return;
+    setState(() => _searchIndex = (_searchIndex + direction + matches.length) % matches.length);
+    _scrollToMessage(matches[_searchIndex].id);
   }
 
   Future<void> _chooseBackground() async {
@@ -422,10 +489,13 @@ class _ChatScreenState extends State<ChatScreen> {
               const Icon(Icons.lock_outline,
                   size: 48, color: Color(0xFFFF7A00)),
               const SizedBox(height: 12),
-              const Text('This chat is password protected'),
+              Text(_privacyCheckFailed
+                  ? 'Could not verify chat privacy. Check your connection and retry.'
+                  : 'This chat is password protected'),
               const SizedBox(height: 12),
               ElevatedButton(
-                  onPressed: _unlockChat, child: const Text('Unlock chat')),
+                  onPressed: _privacyCheckFailed ? _load : _unlockChat,
+                  child: Text(_privacyCheckFailed ? 'Retry' : 'Unlock chat')),
             ]))
           : Stack(fit: StackFit.expand, children: [
               if (_background.isNotEmpty)
@@ -444,18 +514,44 @@ class _ChatScreenState extends State<ChatScreen> {
                         decoration: InputDecoration(
                             prefixIcon: const Icon(Icons.search),
                             hintText: 'Search messages',
-                            suffixIcon: IconButton(
-                                icon: const Icon(Icons.close),
-                                onPressed: () => setState(() {
-                                      _showSearch = false;
-                                      _searchQuery = '';
-                                    })),
+                            suffixIcon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_searchQuery.isNotEmpty) ...[
+                                  Text(
+                                    '${visibleMessages.isEmpty ? 0 : _searchIndex + 1}/${visibleMessages.length}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.keyboard_arrow_up),
+                                    onPressed: () => _moveSearch(-1),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.keyboard_arrow_down),
+                                    onPressed: () => _moveSearch(1),
+                                  ),
+                                ],
+                                IconButton(
+                                  icon: const Icon(Icons.close),
+                                  onPressed: () => setState(() {
+                                    _showSearch = false;
+                                    _searchQuery = '';
+                                    _searchIndex = 0;
+                                  }),
+                                ),
+                              ],
+                            ),
                             filled: true,
                             fillColor: Colors.white,
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12))),
-                        onChanged: (value) =>
-                            setState(() => _searchQuery = value),
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                            _searchIndex = 0;
+                          });
+                          if (value.trim().isNotEmpty) _loadSearchHistory();
+                        },
                       ),
                     ),
                   // Pinned message bar
@@ -483,9 +579,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600)),
                                 Text(
-                                  chat.pinnedMessage!.text.isNotEmpty
-                                      ? chat.pinnedMessage!.text
-                                      : '[Attachment]',
+                                  chat.pinnedMessage!.previewText,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
@@ -507,48 +601,27 @@ class _ChatScreenState extends State<ChatScreen> {
                   // Messages list
                   Expanded(
                     child: chat.loading && chat.messages.isEmpty
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                                color: Color(0xFFFF7A00)))
+                        ? const Center(child: ResenderLoader(scale: .85))
+                        : visibleMessages.isEmpty && _loadingSearchHistory
+                            ? const Center(
+                                child: CircularProgressIndicator(
+                                    color: Color(0xFFFF7A00)))
                         : visibleMessages.isEmpty
                             ? _buildEmptyState()
-                            : ListView.builder(
+                            : ListView(
                                 controller: _scrollCtrl,
                                 reverse: true,
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 8),
-                                itemCount: visibleMessages.length +
-                                    (_searchQuery.isEmpty && chat.hasMore
-                                        ? 1
-                                        : 0) +
-                                    (chat.partnerIsTyping ? 1 : 0),
-                                itemBuilder: (ctx, i) {
-                                  if (chat.partnerIsTyping && i == 0) {
-                                    return _TypingIndicator();
-                                  }
-                                  final msgIndex =
-                                      chat.partnerIsTyping ? i - 1 : i;
-                                  if (msgIndex == visibleMessages.length) {
-                                    return const Padding(
-                                      padding: EdgeInsets.all(12),
-                                      child: Center(
-                                        child: SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Color(0xFFFF7A00)),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  final msg = visibleMessages[msgIndex];
+                                children: [
+                                  if (chat.partnerIsTyping) _TypingIndicator(),
+                                  ...visibleMessages.map((msg) {
 
                                   // Apply new design for text messages
                                   if (msg.text.isNotEmpty &&
                                       msg.image.isEmpty &&
                                       msg.attachment == null) {
-                                    return _animateMessage(
+                                    return KeyedSubtree(key: _messageKeys.putIfAbsent(msg.id, () => GlobalKey()), child: _animateMessage(
                                         msg.id,
                                         _NewMessageBubble(
                                           message: msg,
@@ -566,11 +639,12 @@ class _ChatScreenState extends State<ChatScreen> {
                                               chat.unpinMessage(msg.id),
                                           isPinned:
                                               chat.pinnedMessage?.id == msg.id,
-                                        ));
+                                          onOpenReply: (id) => _scrollToMessage(id),
+                                        )));
                                   }
 
                                   // Fallback for rich attachments
-                                  return _animateMessage(
+                                  return KeyedSubtree(key: _messageKeys.putIfAbsent(msg.id, () => GlobalKey()), child: _animateMessage(
                                       msg.id,
                                       MessageBubble(
                                         message: msg,
@@ -587,8 +661,28 @@ class _ChatScreenState extends State<ChatScreen> {
                                             chat.unpinMessage(msg.id),
                                         isPinned:
                                             chat.pinnedMessage?.id == msg.id,
-                                      ));
-                                },
+                                        onOpenReply: _scrollToMessage,
+                                      )));
+                                }),
+                                  if (_loadingSearchHistory && _searchQuery.isNotEmpty)
+                                    const Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFFFF7A00)),
+                                      ),
+                                    ),
+                                  if (_searchQuery.isEmpty && chat.hasMore)
+                                    const Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFFFF7A00)),
+                                      ),
+                                    ),
+                                ],
                               ),
                   ),
 
@@ -755,6 +849,7 @@ class _NewMessageBubble extends StatelessWidget {
   final VoidCallback onPin;
   final VoidCallback onUnpin;
   final bool isPinned;
+  final ValueChanged<String> onOpenReply;
 
   const _NewMessageBubble({
     required this.message,
@@ -765,6 +860,7 @@ class _NewMessageBubble extends StatelessWidget {
     required this.onPin,
     required this.onUnpin,
     required this.isPinned,
+    required this.onOpenReply,
   });
 
   @override
@@ -789,7 +885,7 @@ class _NewMessageBubble extends StatelessWidget {
 
     final hasReply = message.replyTo != null;
 
-    return GestureDetector(
+    return _SwipeReply(onReply: onReply, child: GestureDetector(
       onLongPress: () {
         showModalBottomSheet(
           context: context,
@@ -901,11 +997,16 @@ class _NewMessageBubble extends StatelessWidget {
                     ),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Text(
-                    'Replied message',
-                    style: TextStyle(
-                      color: isMe ? Colors.white70 : const Color(0xFF6B7280),
-                      fontSize: 12,
+                  child: InkWell(
+                    onTap: () => onOpenReply(message.replyTo!.id),
+                    child: Text(
+                      message.replyTo!.previewText,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isMe ? Colors.white70 : const Color(0xFF6B7280),
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ),
@@ -954,8 +1055,36 @@ class _NewMessageBubble extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
+}
+
+class _SwipeReply extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onReply;
+  const _SwipeReply({required this.child, required this.onReply});
+
+  @override
+  State<_SwipeReply> createState() => _SwipeReplyState();
+}
+
+class _SwipeReplyState extends State<_SwipeReply> {
+  double _drag = 0;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragUpdate: (details) {
+        setState(() => _drag =
+            (_drag + details.primaryDelta!).clamp(-64, 64).toDouble());
+        },
+        onHorizontalDragEnd: (_) {
+          if (_drag.abs() >= 42) widget.onReply();
+          setState(() => _drag = 0);
+        },
+        child: Transform.translate(
+            offset: Offset(_drag, 0), child: widget.child),
+      );
 }
 
 Map<String, int> _groupReactions(List<ReactionModel> reactions) {
@@ -988,7 +1117,7 @@ class _ReplyPreview extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              message.text.isNotEmpty ? message.text : '[Attachment]',
+              message.previewText,
               style: const TextStyle(color: Color(0xFF2C2C2C), fontSize: 13),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

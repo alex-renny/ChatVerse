@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/socket_service.dart';
@@ -21,16 +22,41 @@ class AuthProvider extends ChangeNotifier {
   Future<void> checkSession() async {
     _status = AuthStatus.loading;
     notifyListeners();
+    try {
+      _token = await AuthService.getToken().timeout(const Duration(seconds: 8));
+      _user = await AuthService.getSavedUser().timeout(const Duration(seconds: 8));
 
-    _token = await AuthService.getToken();
-    _user = await AuthService.getSavedUser();
-
-    if (_token != null && _user != null) {
-      _status = AuthStatus.authenticated;
-      SocketService.instance.init(_user!.id, _token!);
-    } else {
-      _status = AuthStatus.unauthenticated;
+      if (_token != null && _user != null) {
+        _status = AuthStatus.authenticated;
+        SocketService.instance.init(_user!.id, _token!);
+        notifyListeners();
+        unawaited(_validateRestoredSession(_token!));
+        return;
+      }
+    } catch (error) {
+      debugPrint('Could not restore saved session: $error');
+      _token = null;
+      _user = null;
     }
+    _status = AuthStatus.unauthenticated;
+    notifyListeners();
+  }
+
+  Future<void> _validateRestoredSession(String token) async {
+    final session = await AuthService.validateSession(token);
+    if (session['unauthorized'] != true) {
+      return;
+    }
+    if (_token != token) return;
+    try {
+      await AuthService.clearSession();
+    } catch (error) {
+      debugPrint('Could not clear expired session: $error');
+    }
+    SocketService.instance.disconnect();
+    _token = null;
+    _user = null;
+    _status = AuthStatus.unauthenticated;
     notifyListeners();
   }
 
@@ -71,10 +97,15 @@ class AuthProvider extends ChangeNotifier {
     try {
       final result = await AuthService.register(
               name: name, email: email, password: password)
-          .timeout(const Duration(seconds: 15));
-      _status = AuthStatus.unauthenticated;
-      if (result['success'] != true) {
+          .timeout(const Duration(seconds: 35));
+      if (result['success'] == true) {
+        _user = result['user'] as UserModel;
+        _token = result['token'] as String;
+        _status = AuthStatus.authenticated;
+        SocketService.instance.init(_user!.id, _token!);
+      } else {
         _error = result['message'] as String?;
+        _status = AuthStatus.unauthenticated;
       }
       notifyListeners();
       return result['success'] == true;

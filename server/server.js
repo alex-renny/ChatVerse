@@ -8,8 +8,11 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import messageRoutes from "./routes/messageRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import jwt from "jsonwebtoken";
+import User from "./models/User.js";
 
 dotenv.config();
 
@@ -46,11 +49,30 @@ export const io = new Server(server, {
 
 export const onlineUsers = new Map();
 
+io.use(async (socket, next) => {
+  try {
+    const header = socket.handshake.headers.authorization || "";
+    const token = socket.handshake.auth?.token || header.replace(/^Bearer\s+/i, "");
+    if (!token) return next(new Error("Authentication required"));
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select("_id");
+    if (!user) return next(new Error("Authentication failed"));
+    socket.data.userId = user._id.toString();
+    return next();
+  } catch (_) {
+    return next(new Error("Authentication failed"));
+  }
+});
+
 io.on("connection", (socket) => {
 
     console.log("🟢 Connected:", socket.id);
 
     socket.on("registerUser", (userId) => {
+      if (userId !== socket.data.userId) {
+        socket.disconnect(true);
+        return;
+      }
   console.log("REGISTER RECEIVED:", userId);
 
   onlineUsers.set(userId, socket.id);
@@ -141,6 +163,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/uploads",express.static(path.join(__dirname, "uploads")));
 
 app.get("/", (req, res) => {

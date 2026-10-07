@@ -17,10 +17,9 @@ class ApiService {
 
   // ── Users ──────────────────────────────────────────────────────────────────
   static Future<List<UserModel>> getUsers() async {
-    final response = await http.get(
-      Uri.parse(ApiConfig.users),
-      headers: await _headers(),
-    );
+    final response = await http
+        .get(Uri.parse(ApiConfig.users), headers: await _headers())
+        .timeout(const Duration(seconds: 12));
     if (response.statusCode != 200) return [];
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
@@ -29,15 +28,30 @@ class ApiService {
   }
 
   static Future<List<UserModel>> getConversationUsers() async {
-    final response = await http.get(
-      Uri.parse(ApiConfig.conversations),
-      headers: await _headers(),
-    );
+    final response = await http
+        .get(Uri.parse(ApiConfig.conversations), headers: await _headers())
+        .timeout(const Duration(seconds: 12));
     if (response.statusCode != 200) return [];
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
         .map((u) => UserModel.fromJson(u as Map<String, dynamic>))
         .toList();
+  }
+
+  static Future<Map<String, dynamic>> getAdminOverview(String password) async {
+    final response = await http
+        .post(
+          Uri.parse(ApiConfig.adminOverview),
+          headers: await _headers(),
+          body: jsonEncode({'password': password}),
+        )
+        .timeout(const Duration(seconds: 30));
+    final data = jsonDecode(response.body);
+    if (data is Map<String, dynamic>) {
+      if (response.statusCode == 200) return data;
+      throw Exception(data['message']?.toString() ?? 'Unable to load admin data');
+    }
+    throw Exception('Unable to load admin data');
   }
 
   // ── Messages ───────────────────────────────────────────────────────────────
@@ -214,7 +228,9 @@ class ApiService {
     final response = await http.get(
         Uri.parse(ApiConfig.chatPasswordEnabled(userId)),
         headers: await _headers());
-    if (response.statusCode != 200) return false;
+    if (response.statusCode != 200) {
+      throw Exception('Unable to verify chat privacy');
+    }
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     return data['enabled'] == true && data['verified'] != true;
   }

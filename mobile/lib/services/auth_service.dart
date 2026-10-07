@@ -14,26 +14,49 @@ class AuthService {
 
   // ── Token helpers ─────────────────────────────────────────────────────────
   static Future<String?> getToken() async {
-    final secure = await _secureStorage.read(key: _tokenKey);
-    if (secure != null) return secure;
+    try {
+      final secure = await _secureStorage
+          .read(key: _tokenKey)
+          .timeout(const Duration(seconds: 6));
+      if (secure != null) return secure;
+    } catch (error) {
+      debugPrint('Secure token storage unavailable: $error');
+    }
     final prefs = await SharedPreferences.getInstance();
     final oldToken = prefs.getString(_tokenKey);
     if (oldToken != null) {
-      await _secureStorage.write(key: _tokenKey, value: oldToken);
-      await prefs.remove(_tokenKey);
+      try {
+        await _secureStorage.write(key: _tokenKey, value: oldToken)
+            .timeout(const Duration(seconds: 6));
+        await prefs.remove(_tokenKey);
+      } catch (_) {
+        // Keep using the legacy preference token if secure storage is unavailable.
+      }
     }
     return oldToken;
   }
 
   static Future<void> _saveSession(String token, UserModel user) async {
     final prefs = await SharedPreferences.getInstance();
-    await _secureStorage.write(key: _tokenKey, value: token);
+    try {
+      await _secureStorage.write(key: _tokenKey, value: token)
+          .timeout(const Duration(seconds: 6));
+      await prefs.remove(_tokenKey);
+    } catch (error) {
+      debugPrint('Secure token storage unavailable; saving session locally: $error');
+      await prefs.setString(_tokenKey, token);
+    }
     await prefs.setString(_userKey, user.toJsonString());
   }
 
   static Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
-    await _secureStorage.delete(key: _tokenKey);
+    try {
+      await _secureStorage.delete(key: _tokenKey)
+          .timeout(const Duration(seconds: 6));
+    } catch (error) {
+      debugPrint('Secure token cleanup failed: $error');
+    }
     await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);
   }
@@ -65,15 +88,29 @@ class AuthService {
           )
           .timeout(const Duration(seconds: 15));
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 201) {
-        return {'success': true, 'message': data['message']};
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final token = data['token'] as String;
+        final user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
+        await _saveSession(token, user);
+        return {
+          'success': true,
+          'message': data['message'],
+          'user': user,
+          'token': token,
+        };
       }
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Registration failed'
-      };
+      final message = data['message']?.toString() ?? 'Registration failed';
+      if (message.toLowerCase().contains('already exists')) {
+        final recovered = await login(email: email, password: password);
+        if (recovered['success'] == true) return recovered;
+      }
+      return {'success': false, 'message': message};
     } catch (e) {
       debugPrint('Auth error: $e');
+      // The server may have created the account even if the registration
+      // response was lost. Try signing in to recover that successful create.
+      final recovered = await login(email: email, password: password);
+      if (recovered['success'] == true) return recovered;
       return {
         'success': false,
         'message': 'Connection failed. Please check your internet.'
@@ -100,13 +137,32 @@ class AuthService {
         await _saveSession(token, user);
         return {'success': true, 'user': user, 'token': token};
       }
-      return {'success': false, 'message': data['message'] ?? 'Login failed'};
+      return {
+        'success': false,
+        'code': data['code'],
+        'message': data['message'] ?? 'Login failed',
+      };
     } catch (e) {
       debugPrint('Auth error: $e');
       return {
         'success': false,
         'message': 'Connection failed. Please check your internet.'
       };
+    }
+  }
+
+  static Future<Map<String, dynamic>> validateSession(String token) async {
+    try {
+      final response = await http.get(
+        Uri.parse(ApiConfig.authSession),
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+      return {
+        'success': response.statusCode == 200,
+        'unauthorized': response.statusCode == 401,
+      };
+    } catch (_) {
+      return {'success': false, 'networkError': true};
     }
   }
 
@@ -122,6 +178,7 @@ class AuthService {
       return {'success': false, 'message': 'Not authenticated'};
 
     try {
+      UserModel? updatedUser;
       // Upload profile picture if provided
       if (profilePicFile != null) {
         final request = http.MultipartRequest(
@@ -135,10 +192,20 @@ class AuthService {
           ));
 
         final streamed =
-            await request.send().timeout(const Duration(seconds: 15));
-        final picResponse = await http.Response.fromStream(streamed);
+            await request.send().timeout(const Duration(seconds: 60));
+        final picResponse = await http.Response.fromStream(streamed)
+            .timeout(const Duration(seconds: 60));
         if (picResponse.statusCode != 200) {
-          return {'success': false, 'message': 'Profile picture upload failed'};
+          final error = jsonDecode(picResponse.body);
+          return {
+            'success': false,
+            'message': error is Map ? error['message'] ?? 'Profile picture upload failed' : 'Profile picture upload failed',
+          };
+        }
+        final picData = jsonDecode(picResponse.body);
+        if (picData is Map<String, dynamic>) {
+          final rawUser = picData['user'] is Map ? picData['user'] : picData;
+          updatedUser = UserModel.fromJson(Map<String, dynamic>.from(rawUser));
         }
       }
 
@@ -161,8 +228,8 @@ class AuthService {
             .timeout(const Duration(seconds: 15));
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         if (response.statusCode == 200) {
-          final updatedUser =
-              UserModel.fromJson(data['user'] as Map<String, dynamic>);
+          final rawUser = data['user'] is Map ? data['user'] : data;
+          updatedUser = UserModel.fromJson(Map<String, dynamic>.from(rawUser));
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(_userKey, updatedUser.toJsonString());
           return {'success': true, 'user': updatedUser};
@@ -173,6 +240,11 @@ class AuthService {
         };
       }
 
+      if (updatedUser != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_userKey, updatedUser.toJsonString());
+        return {'success': true, 'user': updatedUser};
+      }
       return {'success': true};
     } catch (e) {
       debugPrint('Auth error: $e');

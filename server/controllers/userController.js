@@ -32,19 +32,23 @@ export const getConversationUsers = async (req, res) => {
       currentUser.pinnedChats.map((chatId) => chatId.toString())
     );
 
-    const users = await User.find(
-      {
-        _id: { $in: [...userIds] },
-      },
-      "-password"
-    );
+    const users = await User.find({ _id: { $in: [...userIds] } })
+      .select("-password -chatPassword")
+      .then((found) => found.filter((user) =>
+        !user.chatPasswordEnabled || user.verifiedUsers.some(
+          (approvedId) => approvedId.toString() === userId.toString()
+        )
+      ));
 
     res.json(
       users
-        .map((user) => ({
-          ...user.toObject(),
-          isPinned: pinnedChatIds.has(user._id.toString()),
-        }))
+        .map((user) => {
+          const { verifiedUsers: _verifiedUsers, ...safeUser } = user.toObject();
+          return {
+            ...safeUser,
+            isPinned: pinnedChatIds.has(user._id.toString()),
+          };
+        })
         .sort((a, b) => Number(b.isPinned) - Number(a.isPinned))
     );
 
@@ -59,12 +63,8 @@ export const getConversationUsers = async (req, res) => {
 
 export const getUsers = async (req, res) => {
   try {
-    const users = await User.find(
-  {
-    _id: { $ne: req.user._id },
-  },
-  "-password"
-);
+    const users = await User.find({ _id: { $ne: req.user._id } })
+      .select("-password -chatPassword -verifiedUsers");
 
     res.status(200).json(users);
   } catch (error) {
@@ -160,6 +160,8 @@ export const setChatPassword = async (req, res) => {
 
     user.chatPasswordEnabled = true;
     user.chatPassword = hashed;
+    // A changed password revokes prior approvals so access cannot silently persist.
+    user.verifiedUsers = [];
 
     await user.save();
 

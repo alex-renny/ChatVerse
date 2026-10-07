@@ -23,7 +23,7 @@
     <application
         android:label="ReSender"
         android:name="${applicationName}"
-        android:icon="@drawable/resender_icon"
+        android:icon="@drawable/resender_launcher"
         android:usesCleartextTraffic="true"
         android:requestLegacyExternalStorage="true">
 

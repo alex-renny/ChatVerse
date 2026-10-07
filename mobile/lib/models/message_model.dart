@@ -52,7 +52,12 @@ class AttachmentModel {
         'resourceType': resourceType,
       };
 
-  bool get isImage => mimeType.startsWith('image/');
+  bool get isImage {
+    if (mimeType.toLowerCase().startsWith('image/')) return true;
+    if (url.toLowerCase().contains('/image/upload/')) return true;
+    final nameOrUrl = '$name $url'.toLowerCase().split('?').first;
+    return RegExp(r'\.(png|jpe?g|gif|webp|bmp|heic)(\s|$)').hasMatch(nameOrUrl);
+  }
   bool get isVideo => mimeType.startsWith('video/');
   bool get isAudio => mimeType.startsWith('audio/');
   bool get isPdf => mimeType == 'application/pdf';
@@ -75,6 +80,20 @@ class MessageModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isSending;
+
+  String get previewText {
+    if (text.trim().isNotEmpty) return text.trim();
+    if (image.isNotEmpty || attachment?.isImage == true) return '📷 Photo';
+    if (attachment?.isVoice == true) return '🎙 Voice message';
+    if (attachment?.isVideo == true) return '🎬 Video';
+    if (attachment?.isAudio == true) return '🎵 Audio';
+    if (attachment?.isPdf == true) return '📄 PDF';
+    if (attachment != null) {
+      final name = attachment!.name.trim();
+      return name.isEmpty ? '📎 Attachment' : '📎 $name';
+    }
+    return 'Message unavailable';
+  }
 
   const MessageModel({
     required this.id,
@@ -104,14 +123,23 @@ class MessageModel {
     String receiverId =
         (receiver is Map ? receiver['_id'] : receiver)?.toString() ?? '';
 
+    final attachmentJson = json['attachment'] is Map
+        ? Map<String, dynamic>.from(json['attachment'] as Map)
+        : (json['file'] is String && (json['file'] as String).isNotEmpty
+            ? <String, dynamic>{
+                'url': json['file'],
+                'name': json['fileName'] ?? json['file'],
+                'mimeType': json['mimeType'] ?? '',
+              }
+            : null);
     return MessageModel(
       id: json['_id']?.toString() ?? '',
       senderId: senderId,
       receiverId: receiverId,
       text: json['text']?.toString() ?? '',
-      image: json['image']?.toString() ?? '',
-      attachment: json['attachment'] != null
-          ? AttachmentModel.fromJson(json['attachment'] as Map<String, dynamic>)
+      image: (json['image'] ?? '').toString(),
+      attachment: attachmentJson != null
+          ? AttachmentModel.fromJson(attachmentJson)
           : null,
       replyTo: json['replyTo'] != null && json['replyTo'] is Map
           ? MessageModel.fromJson(json['replyTo'] as Map<String, dynamic>)

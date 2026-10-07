@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import socket from "../services/socket";
+import API from "../services/api";
 import {
   clearSession,
   getSessionUser,
@@ -22,13 +23,30 @@ export function AuthProvider({ children }) {
       socket.emit("registerUser", userId);
     };
 
-    // Register after every connection (including automatic reconnects). If
-    // hot reload leaves an existing socket open, register immediately too.
-    socket.on("connect", registerUser);
-    socket.connect();
-    if (socket.connected) registerUser();
+    let active = true;
+    const connectVerifiedSession = async () => {
+      try {
+        await API.get("/auth/session");
+        if (!active) return;
+        // Register after every connection, including automatic reconnects.
+        socket.on("connect", registerUser);
+        socket.connect();
+        if (socket.connected) registerUser();
+      } catch (error) {
+        if (!active) return;
+        if (error.response?.status === 401) {
+          socket.disconnect();
+          setUserState(null);
+          clearSession();
+        }
+      }
+    };
+    connectVerifiedSession();
 
-    return () => socket.off("connect", registerUser);
+    return () => {
+      active = false;
+      socket.off("connect", registerUser);
+    };
   }, [user]);
 
   const login = (userData, token) => {

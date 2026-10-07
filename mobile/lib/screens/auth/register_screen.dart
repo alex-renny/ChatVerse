@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -32,14 +31,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _nameCtrl.text.trim(), _emailCtrl.text.trim(), _passCtrl.text.trim());
     if (!mounted) return;
     if (ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created! Please sign in.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+      Navigator.popUntil(context, (route) => route.isFirst);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -206,10 +198,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 16),
                               child: GestureDetector(
-                                onTap: () => Navigator.pushReplacement(
+                                onTap: () => Navigator.popUntil(
                                   context,
-                                  MaterialPageRoute(
-                                      builder: (_) => const LoginScreen()),
+                                  (route) => route.isFirst,
                                 ),
                                 child: RichText(
                                   text: const TextSpan(

@@ -22,6 +22,7 @@ class MessageBubble extends StatefulWidget {
   final VoidCallback onPin;
   final VoidCallback onUnpin;
   final bool isPinned;
+  final ValueChanged<String>? onOpenReply;
 
   const MessageBubble({
     super.key,
@@ -34,6 +35,7 @@ class MessageBubble extends StatefulWidget {
     required this.onPin,
     required this.onUnpin,
     this.isPinned = false,
+    this.onOpenReply,
   });
 
   @override
@@ -199,14 +201,12 @@ class _MessageBubbleState extends State<MessageBubble> {
       onHorizontalDragUpdate: (details) {
         if (!_isDeleted) {
           setState(() {
-            _dragExtent += details.primaryDelta!;
-            if (_dragExtent < 0) _dragExtent = 0;
-            if (_dragExtent > 60) _dragExtent = 60;
+            _dragExtent = (_dragExtent + details.primaryDelta!).clamp(-60, 60).toDouble();
           });
         }
       },
       onHorizontalDragEnd: (details) {
-        if (_dragExtent >= 50 && !_isDeleted) {
+        if (_dragExtent.abs() >= 42 && !_isDeleted) {
           widget.onReply();
         }
         setState(() {
@@ -234,15 +234,18 @@ class _MessageBubbleState extends State<MessageBubble> {
                     : const Color(0xFFFF7A00),
                 width: 4)),
       ),
-      child: Text(
-        reply.text.isNotEmpty ? reply.text : '[Attachment]',
-        style: TextStyle(
-            color: isMe
-                ? Colors.white70
-                : const Color(0xFF2C2C2C).withOpacity(0.7),
-            fontSize: 12),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
+      child: InkWell(
+        onTap: widget.onOpenReply == null ? null : () => widget.onOpenReply!(reply.id),
+        child: Text(
+          reply.previewText,
+          style: TextStyle(
+              color: isMe
+                  ? Colors.white70
+                  : const Color(0xFF2C2C2C).withOpacity(0.7),
+              fontSize: 12),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }
