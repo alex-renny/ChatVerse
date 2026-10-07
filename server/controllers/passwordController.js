@@ -15,7 +15,7 @@ export const changeOwnPassword = async (req, res) => {
       return res.status(403).json({ message: "Password changes are disabled by the admin" });
     }
 
-    const user = await User.findById(req.user._id).select("+password +pendingPasswordChangeHash passwordChangeCount");
+    const user = await User.findById(req.user._id).select("password passwordChangeCount +pendingPasswordChangeHash");
     if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
       return res.status(401).json({ message: "Current password is incorrect" });
     }

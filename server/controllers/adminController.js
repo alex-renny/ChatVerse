@@ -35,8 +35,22 @@ const verifyAdminPassword = async (req, password, res) => {
     return null;
   }
 
-  const account = await User.findById(requesterId).select("+password email");
-  if (!account || account.email.toLowerCase() !== configuredAdminEmail() ||
+  let account;
+  try {
+    // Explicit inclusion is required because this query follows a protected
+    // request whose user document was loaded with `-password`.
+    account = await User.findById(requesterId).select("email password");
+  } catch (error) {
+    console.error("Admin account lookup failed:", error.message);
+    res.status(503).json({ message: "Unable to verify the admin account right now" });
+    return null;
+  }
+  if (!account || !account.password) {
+    console.error("Admin account password hash was not returned by MongoDB");
+    res.status(503).json({ message: "Unable to verify the admin account right now" });
+    return null;
+  }
+  if (account.email.toLowerCase() !== configuredAdminEmail() ||
       !(await bcrypt.compare(password, account.password))) {
     const count = (attempt?.count || 0) + 1;
     failedAttempts.set(requesterId, {
@@ -160,7 +174,7 @@ export const reviewPasswordChange = async (req, res) => {
   if (typeof userId !== "string" || typeof approve !== "boolean") {
     return res.status(400).json({ message: "Invalid password request" });
   }
-  const user = await User.findById(userId).select("+pendingPasswordChangeHash passwordChangeCount");
+  const user = await User.findById(userId).select("password passwordChangeCount +pendingPasswordChangeHash");
   if (!user?.pendingPasswordChangeHash) {
     return res.status(404).json({ message: "Password request no longer exists" });
   }
