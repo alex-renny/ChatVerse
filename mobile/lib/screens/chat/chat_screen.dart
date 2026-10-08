@@ -879,7 +879,7 @@ class _NewMessageBubble extends StatelessWidget {
 
     String timeStr = '';
     try {
-      final d = message.createdAt;
+      final d = message.createdAt.toLocal();
       timeStr =
           '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
     } catch (_) {}
